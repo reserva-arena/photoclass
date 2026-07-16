@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhotoClass - Enviar Fotos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="app-header-brand">
+      <span class="brand-mark">PC</span>
+      <span class="app-header-title">PhotoClass</span>
+    </div>
+    <nav class="app-header-nav">
+      <a href="dashboard.html">Painel</a>
+      <a href="alunos.html">Alunos</a>
+      <a href="fotos.html" class="active">Fotos</a>
+    </nav>
+    <div class="app-header-actions">
+      <span id="user-email" class="app-header-email"></span>
+      <button id="logout-button" class="btn-ghost">Sair</button>
+    </div>
+  </header>
+
+  <main class="app-main">
+
+    <section class="card">
+      <h2>1. Selecionar turma</h2>
+      <p class="card-subtitle">O reconhecimento compara só com os alunos dessa turma</p>
+
+      <div class="field">
+        <label for="turma-select">Turma</label>
+        <select id="turma-select">
+          <option value="">Carregando turmas...</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="card" id="upload-card" hidden>
+      <h2>2. Enviar fotos</h2>
+      <p class="card-subtitle" id="upload-subtitle">Selecione as fotos da atividade</p>
+
+      <div class="field">
+        <input type="file" id="fotos-input" accept="image/*" multiple>
+      </div>
+
+      <p id="upload-error" class="error-message" role="alert" hidden></p>
+
+      <button id="process-button" class="btn-primary" disabled>
+        <span id="process-button-text">Reconhecer rostos</span>
+      </button>
+    </section>
+
+    <section class="card" id="results-card" hidden>
+      <h2>3. Resultados</h2>
+      <p class="card-subtitle" id="results-subtitle"></p>
+
+      <div id="results-list" class="results-list"></div>
+
+      <button id="save-button" class="btn-primary" hidden style="margin-top: 1rem;">
+        Salvar fotos confirmadas
+      </button>
+      <p id="save-success" class="success-message" role="status" hidden style="margin-top: 1rem;"></p>
+    </section>
+
+  </main>
+
+  <script type="module" src="js/fotos.js"></script>
+</body>
+</html>

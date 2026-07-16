@@ -413,3 +413,105 @@ input[type="file"] {
   color: var(--color-navy-light);
   padding: 1rem 0;
 }
+
+/* ---------- Navegação do header ---------- */
+
+.app-header-nav {
+  display: none;
+  gap: 4px;
+}
+
+@media (min-width: 640px) {
+  .app-header-nav {
+    display: flex;
+  }
+}
+
+.app-header-nav a {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-navy-light);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 7px;
+}
+
+.app-header-nav a:hover {
+  background: var(--color-bg);
+}
+
+.app-header-nav a.active {
+  background: var(--color-bg);
+  color: var(--color-navy);
+}
+
+/* ---------- Select (turma) ---------- */
+
+select {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--color-navy);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  outline: none;
+}
+
+/* ---------- Resultados do reconhecimento ---------- */
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.result-item {
+  display: flex;
+  gap: 14px;
+  padding: 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+
+.result-photo {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.result-faces {
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+}
+
+.result-face {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.face-select {
+  height: 36px;
+  font-size: 13px;
+  padding: 0 10px;
+  flex: 1;
+  min-width: 140px;
+}
+
+.face-confidence {
+  font-size: 11px;
+  color: var(--color-navy-light);
+  white-space: nowrap;
+}
