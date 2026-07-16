@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhotoClass - Alunos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="app-header-brand">
+      <span class="brand-mark">PC</span>
+      <span class="app-header-title">PhotoClass</span>
+    </div>
+    <div class="app-header-actions">
+      <span id="user-email" class="app-header-email"></span>
+      <button id="logout-button" class="btn-ghost">Sair</button>
+    </div>
+  </header>
+
+  <main class="app-main">
+
+    <section class="card">
+      <h2>Cadastrar aluno</h2>
+      <p class="card-subtitle">Educação Infantil</p>
+
+      <form id="student-form" novalidate>
+        <div class="field">
+          <label for="nome">Nome completo</label>
+          <input type="text" id="nome" name="nome" required placeholder="Ex: Maria Eduarda Silva">
+        </div>
+
+        <div class="field">
+          <label for="turma">Turma</label>
+          <input type="text" id="turma" name="turma" required placeholder="Ex: Jardim I - Manhã">
+        </div>
+
+        <div class="field">
+          <label for="foto">Foto de referência</label>
+          <div class="photo-upload">
+            <div class="photo-preview" id="photo-preview">
+              <span id="photo-preview-placeholder">Sem foto</span>
+              <img id="photo-preview-img" hidden alt="Pré-visualização da foto">
+            </div>
+            <input type="file" id="foto" name="foto" accept="image/*" required>
+          </div>
+        </div>
+
+        <p id="form-error" class="error-message" role="alert" hidden></p>
+        <p id="form-success" class="success-message" role="status" hidden></p>
+
+        <button type="submit" id="submit-button" class="btn-primary">
+          <span id="submit-button-text">Cadastrar aluno</span>
+        </button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Alunos cadastrados</h2>
+      <p class="card-subtitle" id="students-count">Carregando...</p>
+
+      <div id="students-list" class="students-grid"></div>
+    </section>
+
+  </main>
+
+  <script type="module" src="js/alunos.js"></script>
+</body>
+</html>

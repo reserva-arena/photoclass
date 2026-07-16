@@ -1,0 +1,14 @@
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.log
+
+# Node (caso venhamos a usar futuramente)
+node_modules/
+
+# Arquivos locais de anotações (não subir chaves/senhas por engano)
+anotacoes*.txt
+*.local.txt

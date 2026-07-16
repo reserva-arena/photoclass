@@ -1,9 +1,6 @@
 // ============================================
-// PhotoClass - Painel do Professor
+// PhotoClass - Painel Principal
 // ============================================
-// Por enquanto só protege a página e permite logout.
-// A funcionalidade real (cadastro de alunos, upload de
-// fotos) será construída nas próximas etapas.
 
 import { auth } from "./firebase-config.js";
 import {
@@ -14,7 +11,6 @@ import {
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
 
-// Se não estiver logado, manda de volta pro login
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     window.location.href = "index.html";
