@@ -1,0 +1,209 @@
+/* ============================================
+   PhotoClass - Estilos Gerais
+   ============================================
+   Direção visual: paleta calorosa (âmbar + azul-marinho + teal),
+   tipografia serifada com personalidade para o nome do app,
+   e um motivo de "fotos empilhadas" como assinatura visual —
+   remete diretamente ao que o app faz: organizar fotos.
+*/
+
+:root {
+  --color-bg: #F2F0EA;
+  --color-navy: #22314F;
+  --color-navy-light: #4A5A7D;
+  --color-amber: #E8A33D;
+  --color-amber-dark: #B77A1F;
+  --color-teal: #2F9C8F;
+  --color-red: #C0392B;
+  --color-white: #FFFFFF;
+  --color-border: #E2DED2;
+
+  --font-display: 'Fraunces', serif;
+  --font-body: 'Work Sans', system-ui, sans-serif;
+
+  --radius: 14px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--color-bg);
+  color: var(--color-navy);
+  min-height: 100vh;
+}
+
+/* ---------- Tela de Login ---------- */
+
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.photo-stack {
+  position: absolute;
+  width: 340px;
+  height: 420px;
+  pointer-events: none;
+}
+
+.stack-card {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+}
+
+.stack-card--back {
+  background: var(--color-amber);
+  opacity: 0.18;
+  transform: rotate(-7deg);
+}
+
+.stack-card--mid {
+  background: var(--color-teal);
+  opacity: 0.14;
+  transform: rotate(5deg);
+}
+
+.login-card {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  background: var(--color-white);
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  padding: 2.25rem 2rem;
+  box-shadow: 0 20px 40px -20px rgba(34, 49, 79, 0.25);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 2rem;
+}
+
+.brand-mark {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--color-amber);
+  color: var(--color-navy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 17px;
+}
+
+.brand h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 22px;
+  color: var(--color-navy);
+  line-height: 1.2;
+}
+
+.brand-tagline {
+  font-size: 13px;
+  color: var(--color-navy-light);
+  margin-top: 2px;
+}
+
+/* ---------- Formulário ---------- */
+
+.field {
+  margin-bottom: 1.1rem;
+}
+
+.field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-navy-light);
+  margin-bottom: 6px;
+}
+
+.field input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--color-navy);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.field input::placeholder {
+  color: #A6A290;
+}
+
+.field input:focus {
+  border-color: var(--color-amber);
+  box-shadow: 0 0 0 3px rgba(232, 163, 61, 0.25);
+}
+
+.error-message {
+  font-size: 13px;
+  color: var(--color-red);
+  background: rgba(192, 57, 43, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 1rem;
+}
+
+.btn-primary {
+  width: 100%;
+  height: 48px;
+  margin-top: 0.5rem;
+  background: var(--color-navy);
+  color: var(--color-white);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 15px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.btn-primary:hover {
+  background: var(--color-navy-light);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-primary:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+/* ---------- Responsivo (mobile-first já é o padrão acima) ---------- */
+
+@media (max-width: 420px) {
+  .login-card {
+    padding: 1.75rem 1.5rem;
+  }
+
+  .photo-stack {
+    display: none;
+  }
+}

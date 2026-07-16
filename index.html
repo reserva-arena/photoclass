@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhotoClass - Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <main class="login-screen">
+    <div class="photo-stack" aria-hidden="true">
+      <div class="stack-card stack-card--back"></div>
+      <div class="stack-card stack-card--mid"></div>
+    </div>
+
+    <div class="login-card">
+      <div class="brand">
+        <span class="brand-mark">PC</span>
+        <div>
+          <h1>PhotoClass</h1>
+          <p class="brand-tagline">Educação Infantil</p>
+        </div>
+      </div>
+
+      <form id="login-form" novalidate>
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input type="email" id="email" name="email" autocomplete="username" required placeholder="professora@colegioarena.com.br">
+        </div>
+
+        <div class="field">
+          <label for="password">Senha</label>
+          <input type="password" id="password" name="password" autocomplete="current-password" required placeholder="••••••••">
+        </div>
+
+        <p id="login-error" class="error-message" role="alert" hidden></p>
+
+        <button type="submit" id="login-button" class="btn-primary">
+          <span id="login-button-text">Entrar</span>
+        </button>
+      </form>
+    </div>
+  </main>
+
+  <script type="module" src="js/auth.js"></script>
+</body>
+</html>
