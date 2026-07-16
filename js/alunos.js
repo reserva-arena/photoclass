@@ -19,6 +19,7 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { configurarAlternadorVisao, estaEmModoAdmin } from "./roles.js";
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");
@@ -47,6 +48,7 @@ onAuthStateChanged(auth, (user) => {
   } else {
     usuarioAtual = user;
     userEmailLabel.textContent = user.email;
+    configurarAlternadorVisao(user.email);
     carregarAlunos();
   }
 });
@@ -172,13 +174,14 @@ function carregarAlunos() {
       const aluno = docSnap.data();
       const card = document.createElement("div");
       card.className = "student-card";
+      const podeExcluir = estaEmModoAdmin(usuarioAtual.email);
       card.innerHTML = `
         <img src="${aluno.foto}" alt="Foto de ${aluno.nome}" class="student-photo">
         <div class="student-info">
           <p class="student-name">${aluno.nome}</p>
           <p class="student-class">${aluno.turma}</p>
         </div>
-        <button class="student-delete" title="Remover aluno" data-id="${docSnap.id}">×</button>
+        ${podeExcluir ? `<button class="student-delete" title="Remover aluno" data-id="${docSnap.id}">×</button>` : ""}
       `;
       studentsList.appendChild(card);
     });

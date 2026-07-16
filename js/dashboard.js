@@ -7,6 +7,7 @@ import {
   onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { configurarAlternadorVisao } from "./roles.js";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -16,6 +17,7 @@ onAuthStateChanged(auth, (user) => {
     window.location.href = "index.html";
   } else {
     userEmailLabel.textContent = user.email;
+    configurarAlternadorVisao(user.email);
   }
 });
 

@@ -15,6 +15,7 @@ import {
   addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { configurarAlternadorVisao } from "./roles.js";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação
@@ -49,6 +50,7 @@ onAuthStateChanged(auth, (user) => {
   } else {
     usuarioAtual = user;
     userEmailLabel.textContent = user.email;
+    configurarAlternadorVisao(user.email);
     carregarTurmas();
   }
 });
