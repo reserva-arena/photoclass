@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PhotoClass - Painel</title>
+  <title>PhotoClass - Revisão</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -17,10 +17,10 @@
       <span class="app-header-title">PhotoClass</span>
     </div>
     <nav class="app-header-nav">
-      <a href="dashboard.html" class="active">Painel</a>
+      <a href="dashboard.html">Painel</a>
       <a href="alunos.html">Alunos</a>
       <a href="fotos.html">Fotos</a>
-      <a href="revisao.html">Revisão</a>
+      <a href="revisao.html" class="active">Revisão</a>
     </nav>
     <div class="app-header-actions">
       <button id="view-toggle" class="btn-ghost" hidden></button>
@@ -30,18 +30,23 @@
   </header>
 
   <main class="app-main">
+
     <section class="card">
-      <h2>Bem-vindo(a)!</h2>
-      <p class="card-subtitle">Educação Infantil</p>
-      <a href="alunos.html" class="btn-primary" style="display:block; text-align:center; text-decoration:none; line-height:48px; margin-bottom: 10px;">
-        Cadastrar / ver alunos
-      </a>
-      <a href="fotos.html" class="btn-ghost" style="display:block; text-align:center; text-decoration:none; line-height:44px; height:44px;">
-        Enviar fotos
-      </a>
+      <h2>Fotos aguardando identificação</h2>
+      <p class="card-subtitle" id="revisao-subtitle">Carregando...</p>
+
+      <div class="field">
+        <label for="turma-filtro">Filtrar por turma</label>
+        <select id="turma-filtro">
+          <option value="">Todas as turmas</option>
+        </select>
+      </div>
+
+      <div id="revisao-list" class="results-list"></div>
     </section>
+
   </main>
 
-  <script type="module" src="js/dashboard.js"></script>
+  <script type="module" src="js/revisao.js"></script>
 </body>
 </html>

@@ -255,8 +255,9 @@ function renderizarResultados() {
       : resultado.faces.map((face, indiceFace) => `
           <div class="result-face">
             <select data-foto="${indiceFoto}" data-face="${indiceFace}" class="face-select">
-              <option value="">Não usar</option>
+              <option value="">Aguardando identificação</option>
               ${opcoesAlunos}
+              <option value="__ignorar__">Ignorar (não é aluno)</option>
             </select>
             <span class="face-confidence">${face.alunoId ? `similaridade: ${(1 - face.distancia).toFixed(2)}` : "não reconhecido"}</span>
           </div>
@@ -288,18 +289,20 @@ saveButton.addEventListener("click", async () => {
     let salvos = 0;
 
     for (const select of selects) {
-      const alunoId = select.value;
-      if (!alunoId) continue;
+      const valor = select.value;
+      if (valor === "__ignorar__") continue; // não salva nada, foto descartada
 
       const indiceFoto = Number(select.getAttribute("data-foto"));
-      const aluno = alunosDaTurma.find((a) => a.id === alunoId);
       const fotoDataUrl = resultadosProcessados[indiceFoto].fotoDataUrl;
+      const pendente = valor === "";
+      const aluno = pendente ? null : alunosDaTurma.find((a) => a.id === valor);
 
       await addDoc(collection(db, "fotos"), {
-        alunoId,
-        alunoNome: aluno.nome,
+        alunoId: pendente ? null : aluno.id,
+        alunoNome: pendente ? null : aluno.nome,
         turma: turmaSelect.value,
         foto: fotoDataUrl,
+        pendente,
         criadoPor: usuarioAtual.uid,
         criadoEm: serverTimestamp()
       });
