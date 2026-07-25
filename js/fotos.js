@@ -163,6 +163,7 @@ processButton.addEventListener("click", async () => {
     // Monta os descritores de referência (rosto de cada aluno da turma)
     processButtonText.textContent = "Analisando alunos da turma...";
     const descritoresConhecidos = [];
+    const alunosSemRostoDetectado = [];
     for (const aluno of alunosDaTurma) {
       try {
         const img = await carregarImagem(aluno.foto);
@@ -175,10 +176,17 @@ processButton.addEventListener("click", async () => {
           descritoresConhecidos.push(
             new faceapi.LabeledFaceDescriptors(aluno.id, [deteccao.descriptor])
           );
+        } else {
+          alunosSemRostoDetectado.push(aluno.nome);
         }
       } catch {
-        // se não conseguir ler a foto de referência desse aluno, só pula
+        alunosSemRostoDetectado.push(aluno.nome);
       }
+    }
+
+    if (alunosSemRostoDetectado.length > 0) {
+      uploadError.textContent = `Atenção: não foi possível detectar rosto na foto de referência de: ${alunosSemRostoDetectado.join(", ")}. Esses alunos NUNCA serão reconhecidos até a foto de referência ser trocada por uma mais nítida/de frente.`;
+      uploadError.hidden = false;
     }
 
     if (descritoresConhecidos.length === 0) {
