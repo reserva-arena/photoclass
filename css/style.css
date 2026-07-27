@@ -507,6 +507,11 @@ a.stat-card:hover {
   margin-top: 6px;
 }
 
+.stat-cta--info {
+  color: var(--color-navy-light);
+  font-weight: 500;
+}
+
 .stat-card--acao {
   background: var(--color-navy);
 }

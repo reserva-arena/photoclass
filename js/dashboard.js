@@ -5,7 +5,7 @@
 // de revisão - tudo já filtrado pelas turmas permitidas quando
 // não é a conta admin.
 
-import { auth, db } from "./firebase-config.js?v=20260727b";
+import { auth, db } from "./firebase-config.js?v=20260727c";
 import {
   onAuthStateChanged,
   signOut
@@ -16,8 +16,8 @@ import {
   where,
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727b";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727b";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727c";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727c";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -27,6 +27,7 @@ const statsGrid = document.getElementById("stats-grid");
 const statsEmpty = document.getElementById("stats-empty");
 const statAlunos = document.getElementById("stat-alunos");
 const statTurmas = document.getElementById("stat-turmas");
+const statTurmasLista = document.getElementById("stat-turmas-lista");
 const statPendentes = document.getElementById("stat-pendentes");
 const statPendentesCard = document.getElementById("stat-pendentes-card");
 
@@ -83,6 +84,7 @@ async function carregarResumo(turmasPermitidas) {
 
     statAlunos.textContent = alunosSnap.size;
     statTurmas.textContent = turmasAtivas.size;
+    statTurmasLista.textContent = turmasAtivas.size > 0 ? [...turmasAtivas].sort().join(", ") : "";
     statPendentes.textContent = pendentes;
     statPendentesCard.classList.toggle("stat-card--alert", pendentes > 0);
 

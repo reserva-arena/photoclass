@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20260727b">
+  <link rel="stylesheet" href="css/style.css?v=20260727c">
 </head>
 <body>
 
@@ -42,11 +42,11 @@
           <span class="stat-label">aluno(s) cadastrado(s)</span>
           <span class="stat-cta">+ Cadastrar mais um aluno</span>
         </a>
-        <a href="alunos.html" class="stat-card">
+        <div class="stat-card">
           <span class="stat-number" id="stat-turmas">–</span>
           <span class="stat-label">turma(s) ativa(s)</span>
-          <span class="stat-cta">+ Cadastrar aluno em outra turma</span>
-        </a>
+          <span class="stat-cta stat-cta--info" id="stat-turmas-lista"></span>
+        </div>
         <a href="revisao.html" class="stat-card" id="stat-pendentes-card">
           <span class="stat-number" id="stat-pendentes">–</span>
           <span class="stat-label">foto(s) aguardando revisão</span>
@@ -63,6 +63,6 @@
     </section>
   </main>
 
-  <script type="module" src="js/dashboard.js?v=20260727b"></script>
+  <script type="module" src="js/dashboard.js?v=20260727c"></script>
 </body>
 </html>
