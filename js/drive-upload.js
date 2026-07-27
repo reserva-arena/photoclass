@@ -28,6 +28,14 @@ const NOME_PASTA_PENDENTES = "Não identificados";
 let tokenClient = null;
 let tokenAtual = null; // { access_token, expiraEm }
 let resolverPendente = null;
+let emailUsuario = null; // e-mail já logado no PhotoClass, evita o Google perguntar "qual conta usar?"
+
+// Chama isso assim que souber o e-mail da professora logada (Firebase
+// Auth), pra evitar a tela de "Escolha uma conta" quando ela tem mais
+// de uma conta Google logada no navegador
+export function definirEmailUsuario(email) {
+  emailUsuario = email;
+}
 
 // Cache em memória das pastas já localizadas/criadas nesta sessão,
 // pra não repetir a mesma busca no Drive várias vezes seguidas
@@ -45,6 +53,7 @@ function garantirTokenClient() {
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: DRIVE_CONFIG.oauthClientId,
     scope: DRIVE_CONFIG.scope,
+    hint: emailUsuario || undefined,
     callback: (resposta) => {
       if (resposta.error) {
         if (resolverPendente) resolverPendente.reject(resposta);

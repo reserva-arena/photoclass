@@ -16,7 +16,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { configurarAlternadorVisao, configurarNavProfessores, obterTurmasPermitidas } from "./roles.js";
-import { garantirTokenAcesso, obterPastaDestino, enviarArquivo } from "./drive-upload.js";
+import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")
@@ -60,6 +60,7 @@ onAuthStateChanged(auth, (user) => {
     window.location.href = "index.html";
   } else {
     usuarioAtual = user;
+    definirEmailUsuario(user.email);
     userEmailLabel.textContent = user.email;
     configurarAlternadorVisao(user.email);
     configurarNavProfessores(user.email);

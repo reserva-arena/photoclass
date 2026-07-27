@@ -20,7 +20,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { configurarAlternadorVisao, configurarNavProfessores, obterTurmasPermitidas } from "./roles.js";
-import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, copiarArquivo, excluirArquivo } from "./drive-upload.js";
+import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, copiarArquivo, excluirArquivo, definirEmailUsuario } from "./drive-upload.js";
 import { DRIVE_CONFIG } from "./drive-config.js";
 
 const userEmailLabel = document.getElementById("user-email");
@@ -40,6 +40,7 @@ onAuthStateChanged(auth, (user) => {
     window.location.href = "index.html";
   } else {
     userEmailLabel.textContent = user.email;
+    definirEmailUsuario(user.email);
     configurarAlternadorVisao(user.email);
     configurarNavProfessores(user.email);
     obterTurmasPermitidas(user.email).then((turmas) => {
