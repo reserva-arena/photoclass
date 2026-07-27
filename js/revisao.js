@@ -149,21 +149,44 @@ function escutarPendentes() {
     ? query(fotosRef, where("pendente", "==", true), where("turma", "==", turmaSelecionada))
     : query(fotosRef, where("pendente", "==", true));
 
-  pararDeEscutar = onSnapshot(consulta, (snapshot) => {
+  pararDeEscutar = onSnapshot(consulta, async (snapshot) => {
     // Quando não filtrou por uma turma específica, ainda restringe às
     // turmas permitidas dela (evita ver pendências de outras turmas)
     const docs = turmaSelecionada || turmasPermitidas === null
       ? snapshot.docs
       : snapshot.docs.filter((docSnap) => turmasPermitidas.includes(docSnap.data().turma));
 
-    renderizarLista(docs);
+    const jaIdentificados = await buscarJaIdentificadosNasMesmasFotos(docs);
+    renderizarLista(docs, jaIdentificados);
   }, (erro) => {
     console.error(erro);
     revisaoList.innerHTML = `<p class="empty-state">Não foi possível carregar. Verifique as regras do Firestore.</p>`;
   });
 }
 
-function renderizarLista(docs) {
+// Busca, pras mesmas fotos que estão pendentes aqui, quem já foi
+// identificado (automaticamente ou manualmente) - assim a checklist
+// não pergunta de novo por quem já está resolvido
+async function buscarJaIdentificadosNasMesmasFotos(docs) {
+  const idsGrupo = [...new Set(docs.map((d) => d.data().grupoFotoId).filter(Boolean))];
+  const mapa = new Map(); // grupoFotoId -> [{id, nome}]
+  if (idsGrupo.length === 0) return mapa;
+
+  // Firestore só aceita até 30 valores no "in" por consulta - divide em blocos
+  for (let i = 0; i < idsGrupo.length; i += 30) {
+    const bloco = idsGrupo.slice(i, i + 30);
+    const snapshot = await getDocs(query(collection(db, "fotos"), where("grupoFotoId", "in", bloco)));
+    snapshot.forEach((docSnap) => {
+      const dados = docSnap.data();
+      if (dados.pendente || !dados.alunoId) return; // só interessam os já confirmados
+      if (!mapa.has(dados.grupoFotoId)) mapa.set(dados.grupoFotoId, []);
+      mapa.get(dados.grupoFotoId).push({ id: dados.alunoId, nome: dados.alunoNome });
+    });
+  }
+  return mapa;
+}
+
+function renderizarLista(docs, jaIdentificadosPorGrupo = new Map()) {
   if (docs.length === 0) {
     revisaoSubtitle.textContent = "Nenhuma foto pendente 🎉";
     revisaoList.innerHTML = `<p class="empty-state">Tudo revisado por aqui!</p>`;
@@ -191,9 +214,18 @@ function renderizarLista(docs) {
 
   [...grupos.entries()].forEach(([grupoId, { item, docs: docsGrupo }]) => {
     const alunosDaTurma = alunosPorTurma[item.turma] || [];
+    const jaIdentificados = jaIdentificadosPorGrupo.get(grupoId) || [];
+    const idsJaIdentificados = new Set(jaIdentificados.map((a) => a.id));
+
+    // Só mostra na checklist quem ainda não foi identificado nessa foto
     const opcoesAlunos = alunosDaTurma
+      .filter((a) => !idsJaIdentificados.has(a.id))
       .map((a) => `<label class="revisao-aluno-opcao"><input type="checkbox" value="${a.id}" data-nome="${a.nome}"> ${a.nome}</label>`)
       .join("");
+
+    const avisoJaIdentificados = jaIdentificados.length > 0
+      ? `<p class="card-subtitle" style="margin: 2px 0; color: var(--color-teal);">✓ Já identificado(s) nesta foto: ${jaIdentificados.map((a) => a.nome).join(", ")}</p>`
+      : "";
 
     const card = document.createElement("div");
     card.className = "result-item";
@@ -201,9 +233,10 @@ function renderizarLista(docs) {
       <img src="${item.foto}" alt="Foto pendente" class="result-photo result-photo--grande js-abrir-foto">
       <div class="result-faces">
         <span class="face-confidence">Turma: ${item.turma}${item.atividade ? ` · ${item.atividade}` : ""}</span>
-        <p class="card-subtitle" style="margin: 2px 0;">Tem mais de uma criança na foto? Marque todas.</p>
+        ${avisoJaIdentificados}
+        <p class="card-subtitle" style="margin: 2px 0;">Tem mais alguém na foto? Marque quem falta.</p>
         <div class="revisao-alunos-checklist" data-grupo="${grupoId}">
-          ${opcoesAlunos}
+          ${opcoesAlunos || "<span class=\"card-subtitle\">Todo mundo já foi identificado nessa foto.</span>"}
         </div>
         <div class="result-face">
           <button class="btn-ghost confirmar-btn" data-grupo="${grupoId}">Confirmar</button>
