@@ -37,6 +37,17 @@ const fotoHint = document.getElementById("foto-hint");
 // Preenche o select de turmas, agrupado por segmento - restrito às
 // turmas permitidas quando não é admin (turmasPermitidas === null = todas)
 function preencherTurmas() {
+  const semTurmaAviso = document.getElementById("cadastro-sem-turma");
+
+  // Sem nenhuma turma liberada: esconde o formulário inteiro e mostra um aviso claro
+  if (turmasPermitidas !== null && turmasPermitidas.length === 0) {
+    form.hidden = true;
+    semTurmaAviso.hidden = false;
+    return;
+  }
+  form.hidden = false;
+  semTurmaAviso.hidden = true;
+
   const turmasVisiveis = turmasPermitidas === null
     ? TURMAS
     : TURMAS.filter((t) => turmasPermitidas.includes(t.nome));
