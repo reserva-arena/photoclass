@@ -5,7 +5,7 @@
 // direto no navegador do professor - nenhuma foto sai
 // do dispositivo até o momento de salvar.
 
-import { auth, db } from "./firebase-config.js?v=20260727o";
+import { auth, db } from "./firebase-config.js?v=20260727p";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -15,10 +15,10 @@ import {
   addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727o";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727o";
-import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727o";
-import { aprenderComFoto } from "./aprendizado.js?v=20260727o";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727p";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727p";
+import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727p";
+import { aprenderComFoto } from "./aprendizado.js?v=20260727p";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")
@@ -432,19 +432,20 @@ function renderizarResultados() {
 
   resultsList.innerHTML = "";
 
-  resultadosProcessados.forEach((resultado, indiceFoto) => {
-    const item = document.createElement("div");
-    item.className = "result-item";
+  const resolvidasHtml = [];
+  const precisamAtencaoHtml = [];
 
+  resultadosProcessados.forEach((resultado, indiceFoto) => {
     const opcoesAlunos = alunosDaTurma
       .map((a) => `<option value="${a.id}">${a.nome}</option>`)
       .join("");
 
     // Rostos com alta confiança: selo verde + opção de corrigir (igual antes)
-    const facesAutoHtml = resultado.faces
+    const facesAutoComIndice = resultado.faces
       .map((face, indiceFace) => ({ face, indiceFace }))
-      .filter(({ face }) => ehAltaConfianca(face))
-      .map(({ face, indiceFace }) => `
+      .filter(({ face }) => ehAltaConfianca(face));
+
+    const facesAutoHtml = facesAutoComIndice.map(({ face, indiceFace }) => `
         <div class="result-face face-auto" data-foto="${indiceFoto}" data-face="${indiceFace}">
           <div class="face-auto-badge">
             <span class="face-auto-check">✓</span>
@@ -463,7 +464,7 @@ function renderizarResultados() {
     // em vez de um seletor pra cada um (evita repetir a turma inteira
     // várias vezes numa foto de grupo)
     const facesParaConferir = resultado.faces.filter((face) => !ehAltaConfianca(face));
-    const idsJaAutoNaFoto = new Set(resultado.faces.filter(ehAltaConfianca).map((f) => f.alunoId));
+    const idsJaAutoNaFoto = new Set(facesAutoComIndice.map(({ face }) => face.alunoId));
     const alunosParaChecklist = alunosDaTurma.filter((a) => !idsJaAutoNaFoto.has(a.id));
 
     const checklistHtml = facesParaConferir.length === 0 ? "" : `
@@ -477,24 +478,67 @@ function renderizarResultados() {
       </div>
     `;
 
-    item.innerHTML = `
-      <img src="${resultado.fotoDataUrl}" alt="Foto ${indiceFoto + 1}" class="result-photo result-photo--grande js-abrir-foto">
-      <div class="result-faces">
-        ${facesAutoHtml}${checklistHtml}
-        <label class="foto-ignorar-opcao">
-          <input type="checkbox" class="foto-ignorar-checkbox" data-foto="${indiceFoto}">
-          ⚠️ Está errado? Desconsidere esta foto (não é da turma / não interessa)
-        </label>
-      </div>
-    `;
-    resultsList.appendChild(item);
+    const totalmenteResolvida = facesParaConferir.length === 0 && facesAutoComIndice.length > 0;
 
-    // Pré-seleciona os selects escondidos dos rostos automáticos, com o
-    // aluno já reconhecido (senão ficariam vazios até clicar em "Corrigir")
+    if (totalmenteResolvida) {
+      // Compacta: só a miniatura, os nomes, e um botão pra abrir os
+      // detalhes (corrigir / descartar) só se precisar
+      const nomes = facesAutoComIndice.map(({ face }) => face.alunoNome).join(", ");
+      resolvidasHtml.push(`
+        <div class="foto-resolvida result-item" data-foto="${indiceFoto}">
+          <img src="${resultado.fotoDataUrl}" alt="Foto ${indiceFoto + 1}" class="foto-resolvida-img js-abrir-foto">
+          <div class="foto-resolvida-info">
+            <span class="foto-resolvida-nomes">✓ ${nomes}</span>
+            <button type="button" class="foto-resolvida-detalhes-btn" data-foto="${indiceFoto}">Detalhes / corrigir</button>
+          </div>
+          <div class="foto-resolvida-detalhes" data-foto="${indiceFoto}" hidden>
+            ${facesAutoHtml}
+            <label class="foto-ignorar-opcao">
+              <input type="checkbox" class="foto-ignorar-checkbox" data-foto="${indiceFoto}">
+              ⚠️ Está errado? Desconsidere esta foto (não é da turma / não interessa)
+            </label>
+          </div>
+        </div>
+      `);
+    } else {
+      precisamAtencaoHtml.push(`
+        <div class="result-item" data-foto="${indiceFoto}">
+          <img src="${resultado.fotoDataUrl}" alt="Foto ${indiceFoto + 1}" class="result-photo result-photo--grande js-abrir-foto">
+          <div class="result-faces">
+            ${facesAutoHtml}${checklistHtml}
+            <label class="foto-ignorar-opcao">
+              <input type="checkbox" class="foto-ignorar-checkbox" data-foto="${indiceFoto}">
+              ⚠️ Está errado? Desconsidere esta foto (não é da turma / não interessa)
+            </label>
+          </div>
+        </div>
+      `);
+    }
+  });
+
+  resultsList.innerHTML =
+    (precisamAtencaoHtml.length > 0 ? precisamAtencaoHtml.join("") : "") +
+    (resolvidasHtml.length > 0 ? `
+      <p class="card-subtitle" style="margin: 14px 0 6px;">✅ ${resolvidasHtml.length} foto(s) já reconhecida(s) automaticamente (nada a fazer)</p>
+      <div class="fotos-resolvidas-grid">${resolvidasHtml.join("")}</div>
+    ` : "");
+
+  // Pré-seleciona os selects escondidos dos rostos automáticos, com o
+  // aluno já reconhecido (senão ficariam vazios até clicar em "Corrigir")
+  resultadosProcessados.forEach((resultado, indiceFoto) => {
     resultado.faces.forEach((face, indiceFace) => {
       if (!ehAltaConfianca(face)) return;
-      const select = item.querySelector(`select[data-foto="${indiceFoto}"][data-face="${indiceFace}"]`);
+      const select = resultsList.querySelector(`select[data-foto="${indiceFoto}"][data-face="${indiceFace}"]`);
       if (select) select.value = face.alunoId;
+    });
+  });
+
+  // Botão "Detalhes / corrigir" abre a área escondida da foto compacta
+  resultsList.querySelectorAll(".foto-resolvida-detalhes-btn").forEach((botao) => {
+    botao.addEventListener("click", () => {
+      const detalhes = resultsList.querySelector(`.foto-resolvida-detalhes[data-foto="${botao.getAttribute("data-foto")}"]`);
+      detalhes.hidden = !detalhes.hidden;
+      botao.textContent = detalhes.hidden ? "Detalhes / corrigir" : "Esconder";
     });
   });
 

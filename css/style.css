@@ -986,6 +986,63 @@ select {
   opacity: 0.45;
 }
 
+/* ---------- Fotos totalmente resolvidas (compactas) ---------- */
+
+.fotos-resolvidas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+}
+
+.foto-resolvida {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--color-bg);
+  padding: 0;
+}
+
+.foto-resolvida-img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  cursor: zoom-in;
+  display: block;
+}
+
+.foto-resolvida-info {
+  padding: 6px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.foto-resolvida-nomes {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-teal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.foto-resolvida-detalhes-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 10px;
+  color: var(--color-navy-light);
+  text-decoration: underline;
+  cursor: pointer;
+  text-align: left;
+}
+
+.foto-resolvida-detalhes {
+  padding: 0 8px 10px;
+}
+
 /* ---------- Tela de Professoras ---------- */
 
 .turmas-checklist {
