@@ -12,6 +12,17 @@
 import { DRIVE_CONFIG } from "./drive-config.js";
 
 const PASTA_MIME = "application/vnd.google-apps.folder";
+
+// Extrai a mensagem de erro de verdade que o Google devolveu,
+// pra mostrar algo útil na tela (não só "deu erro")
+async function mensagemDeErroGoogle(resposta) {
+  try {
+    const dados = await resposta.json();
+    return dados?.error?.message || `Erro ${resposta.status}`;
+  } catch {
+    return `Erro ${resposta.status}`;
+  }
+}
 const NOME_PASTA_PENDENTES = "Não identificados";
 
 let tokenClient = null;
@@ -80,7 +91,7 @@ async function buscarPasta(nome, paiId, accessToken) {
   const resposta = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
-  if (!resposta.ok) throw new Error(`Erro ao buscar a pasta "${nome}" no Drive`);
+  if (!resposta.ok) throw new Error(`Erro ao buscar a pasta "${nome}" no Drive: ${await mensagemDeErroGoogle(resposta)}`);
   const dados = await resposta.json();
   return dados.files && dados.files.length > 0 ? dados.files[0].id : null;
 }
@@ -101,7 +112,7 @@ async function criarPasta(nome, paiId, accessToken) {
       })
     }
   );
-  if (!resposta.ok) throw new Error(`Erro ao criar a pasta "${nome}" no Drive`);
+  if (!resposta.ok) throw new Error(`Erro ao criar a pasta "${nome}" no Drive: ${await mensagemDeErroGoogle(resposta)}`);
   const dados = await resposta.json();
   return dados.id;
 }
@@ -165,8 +176,7 @@ export async function enviarArquivo(blob, nomeArquivo, pastaId, accessToken) {
   );
 
   if (!resposta.ok) {
-    console.error(await resposta.text());
-    throw new Error(`Erro ao enviar "${nomeArquivo}" pro Drive`);
+    throw new Error(`Erro ao enviar "${nomeArquivo}" pro Drive: ${await mensagemDeErroGoogle(resposta)}`);
   }
 
   return resposta.json();
@@ -183,7 +193,7 @@ export async function moverArquivo(fileId, pastaOrigemId, pastaDestinoId, access
     method: "PATCH",
     headers: { Authorization: `Bearer ${accessToken}` }
   });
-  if (!resposta.ok) throw new Error("Erro ao mover o arquivo no Drive");
+  if (!resposta.ok) throw new Error(`Erro ao mover o arquivo no Drive: ${await mensagemDeErroGoogle(resposta)}`);
   return resposta.json();
 }
 
@@ -195,7 +205,7 @@ export async function excluirArquivo(fileId, accessToken) {
   );
   // 404 = arquivo já não existe mais, pode ignorar
   if (!resposta.ok && resposta.status !== 404) {
-    throw new Error("Erro ao excluir o arquivo no Drive");
+    throw new Error(`Erro ao excluir o arquivo no Drive: ${await mensagemDeErroGoogle(resposta)}`);
   }
 }
 

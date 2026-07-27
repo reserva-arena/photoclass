@@ -194,7 +194,7 @@ function renderizarLista(docs) {
         });
       } catch (erro) {
         console.error(erro);
-        alert("Erro ao mover a foto no Drive. Tente novamente.");
+        alert(`Erro ao mover a foto no Drive:\n\n${erro.message || erro}`);
         botao.disabled = false;
         botao.textContent = textoOriginal;
       }
@@ -215,7 +215,7 @@ function renderizarLista(docs) {
         await deleteDoc(doc(db, "fotos", id));
       } catch (erro) {
         console.error(erro);
-        alert("Erro ao excluir a foto. Tente novamente.");
+        alert(`Erro ao excluir a foto:\n\n${erro.message || erro}`);
       }
     });
   });

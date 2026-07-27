@@ -561,7 +561,7 @@ saveButton.addEventListener("click", async () => {
     processButton.disabled = true;
   } catch (erro) {
     console.error(erro);
-    alert("Erro ao salvar as fotos no Drive. Verifique sua conexão e tente novamente.");
+    alert(`Erro ao salvar as fotos no Drive:\n\n${erro.message || erro}\n\nSe o erro mencionar permissão, pode ser preciso reautorizar o acesso ao Drive (saia e entre de novo).`);
   } finally {
     saveButton.disabled = false;
     saveButton.textContent = "Salvar fotos confirmadas";
