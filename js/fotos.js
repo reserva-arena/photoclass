@@ -21,6 +21,7 @@ import { garantirTokenAcesso, obterPastaDestino, enviarArquivo } from "./drive-u
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")
 const LIMIAR_ALTA_CONFIANCA = 0.45; // abaixo disso, aceita automaticamente sem pedir revisão (nível "equilibrado")
+const RESOLUCAO_DETECCAO = 608; // maior = detecta rostos menores melhor (fotos com várias pessoas), mas processa mais devagar
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");
@@ -258,7 +259,7 @@ processButton.addEventListener("click", async () => {
         try {
           const img = await carregarImagem(fotoReferencia);
           const deteccao = await faceapi
-            .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+            .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: RESOLUCAO_DETECCAO }))
             .withFaceLandmarks()
             .withFaceDescriptor();
 
@@ -310,7 +311,7 @@ processButton.addEventListener("click", async () => {
       const img = await carregarImagem(dataUrl);
 
       const deteccoes = await faceapi
-        .detectAllFaces(img, new faceapi.TinyFaceDetectorOptions())
+        .detectAllFaces(img, new faceapi.TinyFaceDetectorOptions({ inputSize: RESOLUCAO_DETECCAO }))
         .withFaceLandmarks()
         .withFaceDescriptors();
 
