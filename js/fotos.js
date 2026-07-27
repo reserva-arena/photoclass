@@ -123,7 +123,8 @@ turmaSelect.addEventListener("change", async () => {
   alunosDaTurma = [];
   snapshot.forEach((docSnap) => {
     const dado = docSnap.data();
-    alunosDaTurma.push({ id: docSnap.id, nome: dado.nome, foto: dado.foto });
+    const fotos = dado.fotos && dado.fotos.length > 0 ? dado.fotos : (dado.foto ? [dado.foto] : []);
+    alunosDaTurma.push({ id: docSnap.id, nome: dado.nome, fotos });
   });
 
   uploadSubtitle.textContent = `${alunosDaTurma.length} aluno(s) nessa turma`;
@@ -244,26 +245,34 @@ processButton.addEventListener("click", async () => {
   try {
     await carregarModelos();
 
-    // Monta os descritores de referência (rosto de cada aluno da turma)
+    // Monta os descritores de referência (rosto de cada aluno da turma,
+    // usando TODAS as fotos de referência cadastradas pra ele - melhora
+    // a precisão em ângulos/expressões diferentes)
     processButtonText.textContent = "Analisando alunos da turma...";
     const descritoresConhecidos = [];
     const alunosSemRostoDetectado = [];
     for (const aluno of alunosDaTurma) {
-      try {
-        const img = await carregarImagem(aluno.foto);
-        const deteccao = await faceapi
-          .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-          .withFaceLandmarks()
-          .withFaceDescriptor();
+      const descritoresDoAluno = [];
 
-        if (deteccao) {
-          descritoresConhecidos.push(
-            new faceapi.LabeledFaceDescriptors(aluno.id, [deteccao.descriptor])
-          );
-        } else {
-          alunosSemRostoDetectado.push(aluno.nome);
+      for (const fotoReferencia of aluno.fotos) {
+        try {
+          const img = await carregarImagem(fotoReferencia);
+          const deteccao = await faceapi
+            .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+            .withFaceLandmarks()
+            .withFaceDescriptor();
+
+          if (deteccao) descritoresDoAluno.push(deteccao.descriptor);
+        } catch {
+          // essa foto específica falhou - segue tentando as outras
         }
-      } catch {
+      }
+
+      if (descritoresDoAluno.length > 0) {
+        descritoresConhecidos.push(
+          new faceapi.LabeledFaceDescriptors(aluno.id, descritoresDoAluno)
+        );
+      } else {
         alunosSemRostoDetectado.push(aluno.nome);
       }
     }

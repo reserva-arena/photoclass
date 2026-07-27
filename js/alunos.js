@@ -1,11 +1,9 @@
 // ============================================
 // PhotoClass - Cadastro de Alunos
 // ============================================
-// Por enquanto a foto é salva como base64 direto no Firestore
-// (funciona bem para uma foto de referência por aluno).
-// Quando construirmos o upload de fotos do dia a dia, essas
-// sim vão para o Google Drive - a foto de referência pode
-// continuar aqui, já que é só uma por aluno.
+// Até 3 fotos de referência por aluno (base64 no Firestore), pra
+// melhorar a precisão do reconhecimento em ângulos/expressões
+// diferentes. Comprimidas no navegador antes de salvar.
 
 import { auth, db } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
@@ -56,9 +54,9 @@ function preencherTurmas() {
     turmaInput.appendChild(grupo);
   });
 }
-const fotoInput = document.getElementById("foto");
-const photoPreview = document.getElementById("photo-preview-img");
-const photoPreviewPlaceholder = document.getElementById("photo-preview-placeholder");
+const fotoInputs = [1, 2, 3].map((n) => document.getElementById(`foto-${n}`));
+const photoPreviews = [1, 2, 3].map((n) => document.getElementById(`photo-preview-img-${n}`));
+const photoPreviewPlaceholders = [1, 2, 3].map((n) => document.getElementById(`photo-preview-placeholder-${n}`));
 const formError = document.getElementById("form-error");
 const formSuccess = document.getElementById("form-success");
 const submitButton = document.getElementById("submit-button");
@@ -70,7 +68,7 @@ const studentsCount = document.getElementById("students-count");
 let usuarioAtual = null;
 let turmasPermitidas = null; // null = admin (todas); [] = nenhuma turma liberada ainda
 let alunoEmEdicaoId = null; // null = modo cadastro; senão, id do aluno sendo editado
-let fotoBase64EmEdicao = null; // guarda a foto atual do aluno, caso não troque por uma nova
+let fotosEmEdicao = [null, null, null]; // fotos atuais do aluno em edição, uma por slot
 const alunosCache = new Map(); // id -> dados do aluno, pra reaproveitar ao entrar em edição
 
 // ---------- Proteção da página ----------
@@ -95,18 +93,20 @@ logoutButton.addEventListener("click", async () => {
   window.location.href = "index.html";
 });
 
-// ---------- Pré-visualização da foto ----------
-fotoInput.addEventListener("change", () => {
-  const arquivo = fotoInput.files[0];
-  if (!arquivo) return;
+// ---------- Pré-visualização das fotos (3 slots) ----------
+fotoInputs.forEach((input, indice) => {
+  input.addEventListener("change", () => {
+    const arquivo = input.files[0];
+    if (!arquivo) return;
 
-  const leitor = new FileReader();
-  leitor.onload = (e) => {
-    photoPreview.src = e.target.result;
-    photoPreview.hidden = false;
-    photoPreviewPlaceholder.hidden = true;
-  };
-  leitor.readAsDataURL(arquivo);
+    const leitor = new FileReader();
+    leitor.onload = (e) => {
+      photoPreviews[indice].src = e.target.result;
+      photoPreviews[indice].hidden = false;
+      photoPreviewPlaceholders[indice].hidden = true;
+    };
+    leitor.readAsDataURL(arquivo);
+  });
 });
 
 // ---------- Utilitários de mensagem ----------
@@ -140,15 +140,24 @@ function entrarModoEdicao(id) {
   if (!aluno) return;
 
   alunoEmEdicaoId = id;
-  fotoBase64EmEdicao = aluno.foto;
+  // Compatível com cadastros antigos (campo único "foto") e novos ("fotos": [...])
+  const fotosAtuais = aluno.fotos && aluno.fotos.length > 0 ? aluno.fotos : (aluno.foto ? [aluno.foto] : []);
+  fotosEmEdicao = [fotosAtuais[0] || null, fotosAtuais[1] || null, fotosAtuais[2] || null];
 
   nomeInput.value = aluno.nome;
   turmaInput.value = aluno.turma;
-  fotoInput.value = "";
-  fotoInput.required = false;
-  photoPreview.src = aluno.foto;
-  photoPreview.hidden = false;
-  photoPreviewPlaceholder.hidden = true;
+
+  fotoInputs.forEach((input, indice) => {
+    input.value = "";
+    if (fotosEmEdicao[indice]) {
+      photoPreviews[indice].src = fotosEmEdicao[indice];
+      photoPreviews[indice].hidden = false;
+      photoPreviewPlaceholders[indice].hidden = true;
+    } else {
+      photoPreviews[indice].hidden = true;
+      photoPreviewPlaceholders[indice].hidden = false;
+    }
+  });
 
   formTitle.textContent = `Editando: ${aluno.nome}`;
   submitButtonText.textContent = "Salvar alterações";
@@ -161,12 +170,13 @@ function entrarModoEdicao(id) {
 
 function sairModoEdicao() {
   alunoEmEdicaoId = null;
-  fotoBase64EmEdicao = null;
+  fotosEmEdicao = [null, null, null];
 
   form.reset();
-  fotoInput.required = true;
-  photoPreview.hidden = true;
-  photoPreviewPlaceholder.hidden = false;
+  fotoInputs.forEach((input, indice) => {
+    photoPreviews[indice].hidden = true;
+    photoPreviewPlaceholders[indice].hidden = false;
+  });
 
   formTitle.textContent = "Cadastrar aluno";
   submitButtonText.textContent = "Cadastrar aluno";
@@ -177,11 +187,32 @@ function sairModoEdicao() {
 
 cancelEditButton.addEventListener("click", sairModoEdicao);
 
-// Converte o arquivo de imagem para base64 (texto), pra salvar no Firestore
+// Converte o arquivo de imagem para base64, já reduzindo o tamanho
+// (importante agora que podem ser até 3 fotos por aluno no mesmo documento)
 function arquivoParaBase64(arquivo) {
   return new Promise((resolve, reject) => {
     const leitor = new FileReader();
-    leitor.onload = () => resolve(leitor.result);
+    leitor.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 640;
+        let { width, height } = img;
+        if (width > height && width > maxDim) {
+          height = Math.round(height * (maxDim / width));
+          width = maxDim;
+        } else if (height > maxDim) {
+          width = Math.round(width * (maxDim / height));
+          height = maxDim;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.8));
+      };
+      img.onerror = reject;
+      img.src = leitor.result;
+    };
     leitor.onerror = reject;
     leitor.readAsDataURL(arquivo);
   });
@@ -194,11 +225,13 @@ form.addEventListener("submit", async (event) => {
 
   const nome = nomeInput.value.trim();
   const turma = turmaInput.value.trim();
-  const arquivo = fotoInput.files[0];
   const editando = Boolean(alunoEmEdicaoId);
 
-  if (!nome || !turma || (!editando && !arquivo)) {
-    mostrarErro("Preencha nome, turma e selecione uma foto.");
+  const arquivosSelecionados = fotoInputs.map((input) => input.files[0] || null);
+  const primeiroSlotPreenchido = arquivosSelecionados[0] || (editando && fotosEmEdicao[0]);
+
+  if (!nome || !turma || !primeiroSlotPreenchido) {
+    mostrarErro("Preencha nome, turma e ao menos a primeira foto de referência.");
     return;
   }
 
@@ -207,22 +240,32 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
-  // Limite de tamanho pra não estourar o documento do Firestore (máx. 1MB por documento)
-  if (arquivo && arquivo.size > 700 * 1024) {
-    mostrarErro("A foto está muito grande. Escolha uma imagem menor (até 700KB).");
-    return;
+  for (const arquivo of arquivosSelecionados) {
+    if (arquivo && arquivo.size > 5 * 1024 * 1024) {
+      mostrarErro("Uma das fotos está muito grande (máx. 5MB antes da compressão).");
+      return;
+    }
   }
 
   definirCarregando(true);
 
   try {
-    // Se trocou a foto, usa a nova; senão (só em edição), mantém a atual
-    const fotoBase64 = arquivo ? await arquivoParaBase64(arquivo) : fotoBase64EmEdicao;
+    // Cada slot: se escolheu arquivo novo, comprime e usa; senão (em
+    // edição) mantém a foto que já estava salva ali
+    const fotos = [];
+    for (let i = 0; i < 3; i++) {
+      if (arquivosSelecionados[i]) {
+        fotos.push(await arquivoParaBase64(arquivosSelecionados[i]));
+      } else if (editando && fotosEmEdicao[i]) {
+        fotos.push(fotosEmEdicao[i]);
+      }
+    }
 
     const dados = {
       nome,
       turma,
-      foto: fotoBase64,
+      fotos,
+      foto: fotos[0], // mantido por compatibilidade com telas antigas
       segmento: TURMAS.find((t) => t.nome === turma)?.segmento || "desconhecido"
     };
 
@@ -237,9 +280,7 @@ form.addEventListener("submit", async (event) => {
         criadoEm: serverTimestamp()
       });
       mostrarSucesso(`${nome} cadastrado(a) com sucesso!`);
-      form.reset();
-      photoPreview.hidden = true;
-      photoPreviewPlaceholder.hidden = false;
+      sairModoEdicao();
     }
   } catch (erro) {
     console.error(erro);
@@ -289,12 +330,14 @@ function carregarAlunos() {
 
       const card = document.createElement("div");
       card.className = "student-card";
+      const fotoCapa = (aluno.fotos && aluno.fotos[0]) || aluno.foto;
+      const totalFotos = aluno.fotos ? aluno.fotos.length : (aluno.foto ? 1 : 0);
       card.innerHTML = `
         <button class="student-edit" title="Editar aluno" data-id="${docSnap.id}">✎</button>
-        <img src="${aluno.foto}" alt="Foto de ${aluno.nome}" class="student-photo">
+        <img src="${fotoCapa}" alt="Foto de ${aluno.nome}" class="student-photo">
         <div class="student-info">
           <p class="student-name">${aluno.nome}</p>
-          <p class="student-class">${aluno.turma}</p>
+          <p class="student-class">${aluno.turma}${totalFotos > 1 ? ` · ${totalFotos} fotos` : ""}</p>
         </div>
         <button class="student-delete" title="Remover aluno" data-id="${docSnap.id}">×</button>
       `;

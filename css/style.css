@@ -340,10 +340,41 @@ body {
   object-fit: cover;
 }
 
-#photo-preview-placeholder {
+.photo-preview-placeholder {
   font-size: 10px;
   color: #A6A290;
   text-align: center;
+}
+
+.photo-upload-multi {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.photo-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 84px;
+}
+
+.photo-slot .photo-preview {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+}
+
+.photo-slot-label {
+  font-size: 11px;
+  color: var(--color-navy-light);
+  text-align: center;
+}
+
+.photo-slot input[type="file"] {
+  width: 100%;
+  font-size: 10px;
 }
 
 input[type="file"] {

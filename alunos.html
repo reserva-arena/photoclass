@@ -50,15 +50,37 @@
         </div>
 
         <div class="field">
-          <label for="foto">Foto de referência</label>
-          <div class="photo-upload">
-            <div class="photo-preview" id="photo-preview">
-              <span id="photo-preview-placeholder">Sem foto</span>
-              <img id="photo-preview-img" hidden alt="Pré-visualização da foto">
+          <label>Fotos de referência</label>
+          <p class="card-subtitle" style="margin-top: -4px; margin-bottom: 10px;">
+            Quanto mais fotos (ângulos/expressões diferentes), melhor o reconhecimento
+          </p>
+          <div class="photo-upload-multi">
+            <div class="photo-slot">
+              <div class="photo-preview" id="photo-preview-1">
+                <span class="photo-preview-placeholder" id="photo-preview-placeholder-1">Foto 1</span>
+                <img id="photo-preview-img-1" hidden alt="Pré-visualização da foto 1">
+              </div>
+              <span class="photo-slot-label">Obrigatória</span>
+              <input type="file" id="foto-1" accept="image/*">
             </div>
-            <input type="file" id="foto" name="foto" accept="image/*" required>
+            <div class="photo-slot">
+              <div class="photo-preview" id="photo-preview-2">
+                <span class="photo-preview-placeholder" id="photo-preview-placeholder-2">Foto 2</span>
+                <img id="photo-preview-img-2" hidden alt="Pré-visualização da foto 2">
+              </div>
+              <span class="photo-slot-label">Opcional</span>
+              <input type="file" id="foto-2" accept="image/*">
+            </div>
+            <div class="photo-slot">
+              <div class="photo-preview" id="photo-preview-3">
+                <span class="photo-preview-placeholder" id="photo-preview-placeholder-3">Foto 3</span>
+                <img id="photo-preview-img-3" hidden alt="Pré-visualização da foto 3">
+              </div>
+              <span class="photo-slot-label">Opcional</span>
+              <input type="file" id="foto-3" accept="image/*">
+            </div>
           </div>
-          <p id="foto-hint" class="card-subtitle" hidden style="margin-top: 6px;">Deixe em branco pra manter a foto atual</p>
+          <p id="foto-hint" class="card-subtitle" hidden style="margin-top: 6px;">Deixe um slot em branco pra manter a foto atual dele</p>
         </div>
 
         <p id="form-error" class="error-message" role="alert" hidden></p>
