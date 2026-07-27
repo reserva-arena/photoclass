@@ -65,17 +65,30 @@ function garantirTokenClient() {
 }
 
 // Retorna um access token válido pro Drive. Pede consentimento à
-// professora automaticamente quando necessário (primeira vez na
-// sessão, ou quando o token anterior expirou).
-export function garantirTokenAcesso() {
+// professora automaticamente quando necessário (primeira vez de
+// verdade, ou se o acesso foi revogado) - caso contrário, renova
+// o token em silêncio, sem mostrar nenhuma tela pro Google.
+export async function garantirTokenAcesso() {
   if (tokenAtual && Date.now() < tokenAtual.expiraEm) {
-    return Promise.resolve(tokenAtual.access_token);
+    return tokenAtual.access_token;
   }
 
+  try {
+    // Tenta primeiro sem mostrar nada (funciona se ela já autorizou
+    // o PhotoClass antes nesse navegador, mesmo que a página tenha
+    // recarregado ou seja outra aba)
+    return await solicitarToken("");
+  } catch {
+    // Só cai aqui se realmente não tiver autorização válida ainda
+    return await solicitarToken("consent");
+  }
+}
+
+function solicitarToken(prompt) {
   return new Promise((resolve, reject) => {
     resolverPendente = { resolve, reject };
     const client = garantirTokenClient();
-    client.requestAccessToken({ prompt: tokenAtual ? "" : "consent" });
+    client.requestAccessToken({ prompt });
   });
 }
 
