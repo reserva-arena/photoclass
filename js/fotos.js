@@ -20,7 +20,7 @@ import { garantirTokenAcesso, obterPastaDestino, enviarArquivo } from "./drive-u
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")
-const LIMIAR_ALTA_CONFIANCA = 0.45; // abaixo disso, aceita automaticamente sem pedir revisão (nível "equilibrado")
+const LIMIAR_ALTA_CONFIANCA = 0.58; // aceita automático quando similaridade >= 0.42 (distância = 1 - similaridade)
 const RESOLUCAO_DETECCAO = 608; // maior = detecta rostos menores melhor (fotos com várias pessoas), mas processa mais devagar
 
 // ---------- Elementos ----------
