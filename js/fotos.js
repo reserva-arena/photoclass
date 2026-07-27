@@ -362,6 +362,18 @@ processButton.addEventListener("click", async () => {
         };
       });
 
+      // Segurança: se o mesmo aluno "bateu" em mais de um rosto na MESMA
+      // foto, é sinal de erro (a mesma criança não aparece duas vezes na
+      // mesma imagem) - força revisão manual nesses casos, mesmo com
+      // confiança alta
+      const contagemPorAluno = {};
+      faces.forEach((f) => {
+        if (f.alunoId) contagemPorAluno[f.alunoId] = (contagemPorAluno[f.alunoId] || 0) + 1;
+      });
+      faces.forEach((f) => {
+        if (f.alunoId && contagemPorAluno[f.alunoId] > 1) f.duplicadoNaFoto = true;
+      });
+
       resultadosProcessados.push({
         arquivoOriginal: arquivo,
         fotoDataUrl: redimensionar(img),
@@ -415,7 +427,7 @@ function renderizarResultados() {
     const facesHtml = resultado.faces.length === 0
       ? `<p class="empty-state">Nenhum rosto detectado nessa foto.</p>`
       : resultado.faces.map((face, indiceFace) => {
-          const altaConfianca = face.alunoId && face.distancia < LIMIAR_ALTA_CONFIANCA;
+          const altaConfianca = face.alunoId && face.distancia < LIMIAR_ALTA_CONFIANCA && !face.duplicadoNaFoto;
 
           if (altaConfianca) {
             // Reconhecido com alta confiança: já vai como confirmado,
@@ -443,7 +455,13 @@ function renderizarResultados() {
                 ${opcoesAlunos}
                 <option value="__ignorar__">Ignorar (não é aluno)</option>
               </select>
-              <span class="face-confidence">${face.alunoId ? `similaridade: ${(1 - face.distancia).toFixed(2)}` : "não reconhecido"}</span>
+              <span class="face-confidence">${
+                face.duplicadoNaFoto
+                  ? `⚠️ mesmo aluno em 2 rostos, confira`
+                  : face.alunoId
+                    ? `similaridade: ${(1 - face.distancia).toFixed(2)}`
+                    : "não reconhecido"
+              }</span>
             </div>
           `;
         }).join("");
