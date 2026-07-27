@@ -1,13 +1,20 @@
 // ============================================
 // PhotoClass - Gerenciar Professoras e Turmas
 // ============================================
-// Tela restrita ao Admin: define quais turmas cada professora
-// pode acessar (Alunos, Fotos e Revisão ficam filtrados por isso).
-// O login da professora precisa já existir no Firebase Authentication -
-// aqui só liberamos o acesso às turmas dela.
+// Tela restrita ao Admin: cria o login da professora (e-mail/senha)
+// automaticamente e define quais turmas ela pode acessar - tudo
+// direto pelo app, sem precisar abrir o Firebase Console.
 
-import { auth, db } from "./firebase-config.js";
-import { onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { auth, db, firebaseConfig } from "./firebase-config.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  onAuthStateChanged,
+  signOut,
+  sendPasswordResetEmail,
+  getAuth,
+  createUserWithEmailAndPassword,
+  signOut as signOutSecundario
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
   doc,
@@ -20,6 +27,17 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { configurarAlternadorVisao, configurarNavProfessores, isAdminEmail } from "./roles.js";
 import { TURMAS, NOMES_SEGMENTO } from "./turmas.js";
+
+// Instância secundária do Firebase, só pra criar o login da professora
+// sem afetar a sessão do admin logado no app principal
+const appSecundario = initializeApp(firebaseConfig, "criar-professora");
+const authSecundario = getAuth(appSecundario);
+
+// Gera uma senha temporária aleatória (a professora nunca vai usar essa -
+// ela cria a senha dela mesma pelo e-mail de acesso)
+function gerarSenhaTemporaria() {
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+}
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");
@@ -162,9 +180,29 @@ form.addEventListener("submit", async (event) => {
   }
 
   submitButton.disabled = true;
-  submitButtonText.textContent = "Salvando...";
+  submitButtonText.textContent = emailEmEdicao ? "Salvando..." : "Criando login...";
 
   try {
+    let loginCriadoAgora = false;
+
+    // Só tenta criar o login se for um cadastro novo (não em edição)
+    if (!emailEmEdicao) {
+      try {
+        await createUserWithEmailAndPassword(authSecundario, email, gerarSenhaTemporaria());
+        await signOutSecundario(authSecundario); // limpa a sessão secundária, sem afetar o admin
+        loginCriadoAgora = true;
+      } catch (erroAuth) {
+        if (erroAuth.code === "auth/email-already-in-use") {
+          // Login já existia (criado antes pelo Firebase Console, por exemplo) - segue o jogo
+        } else if (erroAuth.code === "auth/invalid-email") {
+          throw new Error("E-mail inválido.");
+        } else {
+          throw new Error("Não foi possível criar o login. Tente novamente.");
+        }
+      }
+    }
+
+    submitButtonText.textContent = "Salvando turmas...";
     await setDoc(
       doc(db, "professores", email),
       {
@@ -175,12 +213,27 @@ form.addEventListener("submit", async (event) => {
       { merge: true }
     );
 
-    mostrarSucesso(`Turmas de ${email} salvas com sucesso!`);
+    // Manda o e-mail de acesso automaticamente pra quem acabou de ser criada
+    if (loginCriadoAgora) {
+      try {
+        await sendPasswordResetEmail(auth, email);
+      } catch {
+        // Se falhar o envio do e-mail, não bloqueia o cadastro - dá pra reenviar depois
+      }
+    }
+
+    mostrarSucesso(
+      loginCriadoAgora
+        ? `Login criado e turmas liberadas pra ${email}! Ela já recebeu o e-mail pra criar a senha.`
+        : `Turmas de ${email} salvas com sucesso!`
+    );
     sairModoEdicao();
   } catch (erro) {
     console.error(erro);
     if (erro.code === "permission-denied") {
       mostrarErro("Sem permissão para salvar. Verifique as regras do Firestore.");
+    } else if (erro.message) {
+      mostrarErro(erro.message);
     } else {
       mostrarErro("Não foi possível salvar. Tente novamente.");
     }

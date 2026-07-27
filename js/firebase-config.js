@@ -9,8 +9,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/fireba
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-// Configuração do projeto Firebase (PhotoClass)
-const firebaseConfig = {
+// Exporta a config crua também - usada pra criar uma instância
+// secundária do Firebase (ex: criar login de professora sem
+// deslogar o admin no processo)
+export const firebaseConfig = {
   apiKey: "AIzaSyC4jXztW4-MRbWAOa7lb9sHY_L_hr7NZVM",
   authDomain: "photoclass-7b1ba.firebaseapp.com",
   projectId: "photoclass-7b1ba",
