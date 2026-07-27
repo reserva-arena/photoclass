@@ -1,22 +1,23 @@
 /* ============================================
    PhotoClass - Estilos Gerais
    ============================================
-   Direção visual: paleta calorosa (âmbar + azul-marinho + teal),
+   Direção visual: paleta em tons de verde + creme, alinhada com o
+   Reserva Arena (mesmo "ar de família" entre os apps da escola),
    tipografia serifada com personalidade para o nome do app,
    e um motivo de "fotos empilhadas" como assinatura visual —
    remete diretamente ao que o app faz: organizar fotos.
 */
 
 :root {
-  --color-bg: #F2F0EA;
-  --color-navy: #22314F;
-  --color-navy-light: #4A5A7D;
-  --color-amber: #E8A33D;
-  --color-amber-dark: #B77A1F;
-  --color-teal: #2F9C8F;
-  --color-red: #C0392B;
+  --color-bg: #FFF7ED;
+  --color-navy: #1A6B47;
+  --color-navy-light: #5B7768;
+  --color-amber: #F97316;
+  --color-amber-dark: #C2410C;
+  --color-teal: #40B07A;
+  --color-red: #EF4444;
   --color-white: #FFFFFF;
-  --color-border: #E2DED2;
+  --color-border: #E5DFC9;
 
   --font-display: 'Fraunces', serif;
   --font-body: 'Work Sans', system-ui, sans-serif;
@@ -83,7 +84,7 @@ body {
   border-radius: var(--radius);
   border: 1px solid var(--color-border);
   padding: 2.25rem 2rem;
-  box-shadow: 0 20px 40px -20px rgba(34, 49, 79, 0.25);
+  box-shadow: 0 20px 40px -20px rgba(26, 107, 71, 0.25);
 }
 
 .brand {
@@ -156,13 +157,13 @@ body {
 
 .field input:focus {
   border-color: var(--color-amber);
-  box-shadow: 0 0 0 3px rgba(232, 163, 61, 0.25);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.25);
 }
 
 .error-message {
   font-size: 13px;
   color: var(--color-red);
-  background: rgba(192, 57, 43, 0.08);
+  background: rgba(239, 68, 68, 0.08);
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 1rem;
@@ -307,7 +308,7 @@ body {
 .success-message {
   font-size: 13px;
   color: var(--color-teal);
-  background: rgba(47, 156, 143, 0.1);
+  background: rgba(64, 176, 122, 0.1);
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 1rem;
@@ -431,6 +432,51 @@ body {
   font-size: 12px;
   margin-top: 6px;
   opacity: 0.9;
+}
+
+/* ---------- Painel - resumo em números ---------- */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 24px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+a.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -12px rgba(26, 107, 71, 0.35);
+}
+
+.stat-number {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--color-navy);
+  line-height: 1.1;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--color-navy-light);
+  text-align: center;
+}
+
+.stat-card--alert .stat-number {
+  color: var(--color-amber-dark);
 }
 
 input[type="file"] {
@@ -632,7 +678,7 @@ select {
 }
 
 .face-auto-badge .face-auto-check {
-  color: #1a7f4b;
+  color: var(--color-teal);
 }
 
 .face-auto-corrigir {
