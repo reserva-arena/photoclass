@@ -5,7 +5,7 @@
 // automaticamente e define quais turmas ela pode acessar - tudo
 // direto pelo app, sem precisar abrir o Firebase Console.
 
-import { auth, db, firebaseConfig } from "./firebase-config.js?v=20260727h";
+import { auth, db, firebaseConfig } from "./firebase-config.js?v=20260727i";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
   onAuthStateChanged,
@@ -21,12 +21,15 @@ import {
   setDoc,
   deleteDoc,
   query,
+  where,
+  getDocs,
   orderBy,
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260727h";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260727h";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260727i";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260727i";
+import { aprenderComFoto } from "./aprendizado.js?v=20260727i";
 
 // Instância secundária do Firebase, só pra criar o login da professora
 // sem afetar a sessão do admin logado no app principal
@@ -325,3 +328,48 @@ function carregarProfessores() {
     professoresList.innerHTML = `<p class="empty-state">Não foi possível carregar. Verifique as regras do Firestore.</p>`;
   });
 }
+
+// ---------- Aprendizado retroativo ----------
+// Passa pelas fotos já confirmadas (pendente: false) e, só nos casos
+// SEM ambiguidade (fotos onde apenas 1 pessoa foi confirmada na mesma
+// imagem, usando o grupoFotoId pra saber disso), guarda como referência
+// extra do aluno. Fotos antigas sem grupoFotoId são puladas, por
+// segurança (não dá pra saber se eram de grupo ou não).
+const aprendizadoBotao = document.getElementById("aprendizado-retroativo-button");
+const aprendizadoStatus = document.getElementById("aprendizado-retroativo-status");
+
+aprendizadoBotao.addEventListener("click", async () => {
+  aprendizadoBotao.disabled = true;
+  aprendizadoStatus.textContent = "Buscando fotos já confirmadas...";
+
+  try {
+    const snapshot = await getDocs(query(collection(db, "fotos"), where("pendente", "==", false)));
+
+    const porGrupo = new Map(); // grupoFotoId -> [{alunoId, foto}]
+    snapshot.forEach((docSnap) => {
+      const dados = docSnap.data();
+      if (!dados.grupoFotoId || !dados.alunoId || !dados.foto) return; // pula fotos antigas sem esse controle
+      if (!porGrupo.has(dados.grupoFotoId)) porGrupo.set(dados.grupoFotoId, []);
+      porGrupo.get(dados.grupoFotoId).push({ alunoId: dados.alunoId, foto: dados.foto });
+    });
+
+    // Só os grupos com exatamente 1 pessoa confirmada (sem ambiguidade)
+    const semAmbiguidade = [...porGrupo.values()].filter((grupo) => grupo.length === 1).map((grupo) => grupo[0]);
+
+    aprendizadoStatus.textContent = `Encontradas ${semAmbiguidade.length} foto(s) sem ambiguidade de ${porGrupo.size} imagem(ns) confirmada(s). Aprendendo...`;
+
+    let processadas = 0;
+    for (const { alunoId, foto } of semAmbiguidade) {
+      await aprenderComFoto(alunoId, foto);
+      processadas++;
+      aprendizadoStatus.textContent = `Aprendendo... (${processadas}/${semAmbiguidade.length})`;
+    }
+
+    aprendizadoStatus.textContent = `✅ Concluído! ${processadas} foto(s) usada(s) como referência extra (de ${porGrupo.size} imagem(ns) confirmada(s) no total - o restante tinha mais de 1 pessoa na mesma foto, então foi pulado por segurança).`;
+  } catch (erro) {
+    console.error(erro);
+    aprendizadoStatus.textContent = `Erro: ${erro.message || erro}`;
+  } finally {
+    aprendizadoBotao.disabled = false;
+  }
+});
