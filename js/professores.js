@@ -7,7 +7,7 @@
 // aqui só liberamos o acesso às turmas dela.
 
 import { auth, db } from "./firebase-config.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
   doc,
@@ -219,11 +219,39 @@ function carregarProfessores() {
           <p class="professor-turmas">${(dados.turmas || []).join(", ") || "Nenhuma turma"}</p>
         </div>
         <div class="professor-actions">
+          <button class="btn-ghost professor-enviar-acesso" data-email="${docSnap.id}">Enviar e-mail de acesso</button>
           <button class="btn-ghost professor-edit" data-email="${docSnap.id}">Editar</button>
           <button class="btn-ghost professor-remover" data-email="${docSnap.id}">Remover</button>
         </div>
       `;
       professoresList.appendChild(item);
+    });
+
+    document.querySelectorAll(".professor-enviar-acesso").forEach((botao) => {
+      botao.addEventListener("click", async () => {
+        const email = botao.getAttribute("data-email");
+        const textoOriginal = botao.textContent;
+        botao.disabled = true;
+        botao.textContent = "Enviando...";
+
+        try {
+          await sendPasswordResetEmail(auth, email);
+          botao.textContent = "E-mail enviado ✓";
+          setTimeout(() => {
+            botao.textContent = textoOriginal;
+            botao.disabled = false;
+          }, 3000);
+        } catch (erro) {
+          console.error(erro);
+          alert(
+            erro.code === "auth/user-not-found"
+              ? "Esse e-mail ainda não tem login criado no Firebase Authentication. Crie o login dela lá primeiro."
+              : "Não foi possível enviar o e-mail. Tente novamente."
+          );
+          botao.disabled = false;
+          botao.textContent = textoOriginal;
+        }
+      });
     });
 
     document.querySelectorAll(".professor-edit").forEach((botao) => {
