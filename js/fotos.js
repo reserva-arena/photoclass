@@ -496,6 +496,7 @@ saveButton.addEventListener("click", async () => {
     );
     let salvos = 0;
     let pendentesSalvos = 0;
+    const gruposPorFoto = new Map(); // indiceFoto -> ID compartilhado entre todos os rostos dessa mesma imagem
 
     for (let indice = 0; indice < selects.length; indice++) {
       const select = selects[indice];
@@ -510,6 +511,9 @@ saveButton.addEventListener("click", async () => {
       const resultado = resultadosProcessados[indiceFoto];
       const pendente = valor === "";
       const aluno = pendente ? null : alunosDaTurma.find((a) => a.id === valor);
+
+      if (!gruposPorFoto.has(indiceFoto)) gruposPorFoto.set(indiceFoto, crypto.randomUUID());
+      const grupoFotoId = gruposPorFoto.get(indiceFoto);
 
       // Gera a versão em qualidade maior (não a miniatura) a partir
       // do arquivo original, pra subir no Drive
@@ -537,6 +541,7 @@ saveButton.addEventListener("click", async () => {
         driveFileId: arquivoDrive.id,
         driveViewLink: arquivoDrive.webViewLink,
         drivePastaId: pastaDestinoId,
+        grupoFotoId,
         pendente,
         criadoPor: usuarioAtual.uid,
         criadoEm: serverTimestamp()

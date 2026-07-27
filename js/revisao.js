@@ -31,7 +31,7 @@ const revisaoList = document.getElementById("revisao-list");
 
 let alunosPorTurma = {}; // { "9B": [{id, nome}, ...] }
 let pararDeEscutar = null;
-let itensPendentes = {}; // { docId: {turma, driveFileId, drivePastaId, ...} } - guardado pra poder mexer no Drive ao confirmar/descartar
+let itensPendentes = new Map(); // grupoId -> { item, docs: [{id, driveFileId, drivePastaId, ...}] } - fotos da mesma imagem viram um grupo só
 let turmasPermitidas = null; // null = admin (todas); [] = nenhuma turma liberada ainda
 
 onAuthStateChanged(auth, (user) => {
@@ -130,13 +130,22 @@ function renderizarLista(docs) {
     return;
   }
 
-  revisaoSubtitle.textContent = `${docs.length} foto(s) aguardando identificação`;
-  revisaoList.innerHTML = "";
-  itensPendentes = {};
-
+  // Agrupa por foto (vários rostos não identificados na mesma imagem
+  // viram um grupo só, com todos os alunos aparecendo numa checklist
+  // em vez de repetir a mesma foto várias vezes)
+  const grupos = new Map(); // chave -> { docs: [{id, ...item}], item (dados representativos) }
   docs.forEach((docSnap) => {
     const item = docSnap.data();
-    itensPendentes[docSnap.id] = item;
+    const chave = item.grupoFotoId || docSnap.id; // fotos antigas sem grupoFotoId viram grupo de 1
+    if (!grupos.has(chave)) grupos.set(chave, { item, docs: [] });
+    grupos.get(chave).docs.push({ id: docSnap.id, ...item });
+  });
+
+  revisaoSubtitle.textContent = `${docs.length} foto(s) aguardando identificação${grupos.size !== docs.length ? ` (${grupos.size} imagem(ns))` : ""}`;
+  revisaoList.innerHTML = "";
+  itensPendentes = grupos;
+
+  [...grupos.entries()].forEach(([grupoId, { item, docs: docsGrupo }]) => {
     const alunosDaTurma = alunosPorTurma[item.turma] || [];
     const opcoesAlunos = alunosDaTurma
       .map((a) => `<label class="revisao-aluno-opcao"><input type="checkbox" value="${a.id}" data-nome="${a.nome}"> ${a.nome}</label>`)
@@ -149,12 +158,12 @@ function renderizarLista(docs) {
       <div class="result-faces">
         <span class="face-confidence">Turma: ${item.turma}${item.atividade ? ` · ${item.atividade}` : ""}</span>
         <p class="card-subtitle" style="margin: 2px 0;">Tem mais de uma criança na foto? Marque todas.</p>
-        <div class="revisao-alunos-checklist" data-id="${docSnap.id}">
+        <div class="revisao-alunos-checklist" data-grupo="${grupoId}">
           ${opcoesAlunos}
         </div>
         <div class="result-face">
-          <button class="btn-ghost confirmar-btn" data-id="${docSnap.id}">Confirmar</button>
-          <button class="btn-ghost descartar-btn" data-id="${docSnap.id}">Descartar</button>
+          <button class="btn-ghost confirmar-btn" data-grupo="${grupoId}">Confirmar</button>
+          <button class="btn-ghost descartar-btn" data-grupo="${grupoId}">Descartar</button>
         </div>
       </div>
     `;
@@ -163,8 +172,8 @@ function renderizarLista(docs) {
 
   document.querySelectorAll(".confirmar-btn").forEach((botao) => {
     botao.addEventListener("click", async () => {
-      const id = botao.getAttribute("data-id");
-      const checklist = document.querySelector(`.revisao-alunos-checklist[data-id="${id}"]`);
+      const grupoId = botao.getAttribute("data-grupo");
+      const checklist = document.querySelector(`.revisao-alunos-checklist[data-grupo="${grupoId}"]`);
       const marcados = [...checklist.querySelectorAll("input:checked")].map((input) => ({
         id: input.value,
         nome: input.getAttribute("data-nome")
@@ -176,10 +185,10 @@ function renderizarLista(docs) {
       }
 
       const textoOriginal = botao.textContent;
+      const { item, docs: docsGrupo } = itensPendentes.get(grupoId);
 
       try {
-        const item = itensPendentes[id];
-        const temArquivoNoDrive = item && item.driveFileId && item.drivePastaId;
+        const temArquivoNoDrive = docsGrupo[0] && docsGrupo[0].driveFileId && docsGrupo[0].drivePastaId;
         let accessToken = null;
         let pastaTurma = null;
 
@@ -189,66 +198,68 @@ function renderizarLista(docs) {
           pastaTurma = await obterOuCriarPasta(item.turma, DRIVE_CONFIG.pastaRaizId, accessToken);
         }
 
-        // Primeiro aluno marcado: reaproveita este mesmo documento/arquivo (move no Drive)
-        const [primeiro, ...demais] = marcados;
+        // Casa cada aluno marcado com um "arquivo" já existente do grupo
+        // (um por rosto detectado na foto); usa mover pros primeiros e
+        // copia pros excedentes
+        const total = Math.max(marcados.length, docsGrupo.length);
 
-        if (temArquivoNoDrive) {
-          botao.textContent = demais.length > 0 ? `Movendo (1/${marcados.length})...` : "Movendo no Drive...";
-          const pastaAluno = await obterOuCriarPasta(primeiro.nome, pastaTurma, accessToken);
-          const pastaDestino = item.atividade
-            ? await obterOuCriarPasta(item.atividade, pastaAluno, accessToken)
-            : pastaAluno;
-          await moverArquivo(item.driveFileId, item.drivePastaId, pastaDestino, accessToken);
-        }
+        for (let i = 0; i < total; i++) {
+          const aluno = marcados[i]; // pode faltar, se sobrou arquivo sem aluno
+          const docOrigem = docsGrupo[i]; // pode faltar, se sobrou aluno sem arquivo próprio
 
-        await updateDoc(doc(db, "fotos", id), {
-          alunoId: primeiro.id,
-          alunoNome: primeiro.nome,
-          pendente: false
-        });
+          botao.textContent = `Processando (${i + 1}/${total})...`;
 
-        // Demais alunos marcados: cria uma CÓPIA do arquivo na pasta de cada um
-        // (não dá pra mover pro mesmo arquivo pra vários lugares num Drive Compartilhado)
-        for (let i = 0; i < demais.length; i++) {
-          const aluno = demais[i];
-          let driveFileId = null;
-          let driveViewLink = null;
-          let drivePastaId = null;
-
-          if (temArquivoNoDrive) {
-            botao.textContent = `Copiando (${i + 2}/${marcados.length})...`;
-            const pastaAluno = await obterOuCriarPasta(aluno.nome, pastaTurma, accessToken);
-            const pastaDestino = item.atividade
-              ? await obterOuCriarPasta(item.atividade, pastaAluno, accessToken)
-              : pastaAluno;
-            const copia = await copiarArquivo(
-              item.driveFileId,
-              pastaDestino,
-              `${aluno.nome}_${Date.now()}.jpg`,
-              accessToken
-            );
-            driveFileId = copia.id;
-            driveViewLink = copia.webViewLink;
-            drivePastaId = pastaDestino;
+          if (aluno && docOrigem) {
+            // Caso normal: aproveita o arquivo já enviado, só move de pasta
+            if (temArquivoNoDrive) {
+              const pastaAluno = await obterOuCriarPasta(aluno.nome, pastaTurma, accessToken);
+              const pastaDestino = item.atividade
+                ? await obterOuCriarPasta(item.atividade, pastaAluno, accessToken)
+                : pastaAluno;
+              await moverArquivo(docOrigem.driveFileId, docOrigem.drivePastaId, pastaDestino, accessToken);
+            }
+            await updateDoc(doc(db, "fotos", docOrigem.id), {
+              alunoId: aluno.id,
+              alunoNome: aluno.nome,
+              pendente: false
+            });
+          } else if (aluno && !docOrigem) {
+            // Mais alunos marcados do que arquivos no grupo: cria uma cópia
+            let driveFileId = null, driveViewLink = null, drivePastaId = null;
+            if (temArquivoNoDrive) {
+              const pastaAluno = await obterOuCriarPasta(aluno.nome, pastaTurma, accessToken);
+              const pastaDestino = item.atividade
+                ? await obterOuCriarPasta(item.atividade, pastaAluno, accessToken)
+                : pastaAluno;
+              const copia = await copiarArquivo(docsGrupo[0].driveFileId, pastaDestino, `${aluno.nome}_${Date.now()}.jpg`, accessToken);
+              driveFileId = copia.id;
+              driveViewLink = copia.webViewLink;
+              drivePastaId = pastaDestino;
+            }
+            await addDoc(collection(db, "fotos"), {
+              alunoId: aluno.id,
+              alunoNome: aluno.nome,
+              turma: item.turma,
+              atividade: item.atividade || null,
+              foto: item.foto,
+              driveFileId,
+              driveViewLink,
+              drivePastaId,
+              pendente: false,
+              criadoPor: item.criadoPor || null,
+              criadoEm: serverTimestamp()
+            });
+          } else if (!aluno && docOrigem) {
+            // Sobrou arquivo sem nenhum aluno marcado pra ele: exclui (redundante)
+            if (temArquivoNoDrive && docOrigem.driveFileId) {
+              await excluirArquivo(docOrigem.driveFileId, accessToken);
+            }
+            await deleteDoc(doc(db, "fotos", docOrigem.id));
           }
-
-          await addDoc(collection(db, "fotos"), {
-            alunoId: aluno.id,
-            alunoNome: aluno.nome,
-            turma: item.turma,
-            atividade: item.atividade || null,
-            foto: item.foto,
-            driveFileId,
-            driveViewLink,
-            drivePastaId,
-            pendente: false,
-            criadoPor: item.criadoPor || null,
-            criadoEm: serverTimestamp()
-          });
         }
       } catch (erro) {
         console.error(erro);
-        alert(`Erro ao mover a foto no Drive:\n\n${erro.message || erro}`);
+        alert(`Erro ao processar a foto no Drive:\n\n${erro.message || erro}`);
         botao.disabled = false;
         botao.textContent = textoOriginal;
       }
@@ -257,16 +268,18 @@ function renderizarLista(docs) {
 
   document.querySelectorAll(".descartar-btn").forEach((botao) => {
     botao.addEventListener("click", async () => {
-      const id = botao.getAttribute("data-id");
+      const grupoId = botao.getAttribute("data-grupo");
+      const { docs: docsGrupo } = itensPendentes.get(grupoId);
       if (!confirm("Descartar esta foto? Essa ação não pode ser desfeita.")) return;
 
       try {
-        const item = itensPendentes[id];
-        if (item && item.driveFileId) {
-          const accessToken = await garantirTokenAcesso();
-          await excluirArquivo(item.driveFileId, accessToken);
+        const accessToken = docsGrupo.some((d) => d.driveFileId) ? await garantirTokenAcesso() : null;
+        for (const docOrigem of docsGrupo) {
+          if (docOrigem.driveFileId && accessToken) {
+            await excluirArquivo(docOrigem.driveFileId, accessToken);
+          }
+          await deleteDoc(doc(db, "fotos", docOrigem.id));
         }
-        await deleteDoc(doc(db, "fotos", id));
       } catch (erro) {
         console.error(erro);
         alert(`Erro ao excluir a foto:\n\n${erro.message || erro}`);
