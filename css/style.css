@@ -564,6 +564,115 @@ a.stat-card:hover {
   color: var(--color-navy);
 }
 
+/* ---------- Galeria ---------- */
+
+.galeria-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.galeria-breadcrumb button {
+  background: none;
+  border: none;
+  color: var(--color-teal);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.galeria-breadcrumb span.galeria-separador {
+  color: var(--color-navy-light);
+}
+
+.galeria-breadcrumb span.galeria-atual {
+  color: var(--color-navy-light);
+}
+
+.galeria-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.galeria-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--color-bg);
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  font-family: inherit;
+}
+
+.galeria-card-capa {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  background: var(--color-border);
+  display: block;
+}
+
+.galeria-card-info {
+  padding: 8px 10px 10px;
+}
+
+.galeria-card-nome {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-navy);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.galeria-card-contagem {
+  font-size: 11px;
+  color: var(--color-navy-light);
+}
+
+.galeria-foto-wrapper {
+  position: relative;
+}
+
+.galeria-foto-wrapper img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 10px;
+  cursor: zoom-in;
+  display: block;
+}
+
+.galeria-foto-drive-link {
+  display: block;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-teal);
+  text-decoration: none;
+  margin-top: 4px;
+}
+
+.galeria-abrir-drive {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-teal);
+  text-decoration: none;
+  margin-bottom: 14px;
+}
+
 input[type="file"] {
   font-family: var(--font-body);
   font-size: 13px;

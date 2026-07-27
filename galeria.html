@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PhotoClass - Revisão</title>
+  <title>PhotoClass - Galeria</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css?v=20260727d">
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -22,8 +21,8 @@
       <a href="dashboard.html">Painel</a>
       <a href="alunos.html">Alunos</a>
       <a href="fotos.html">Fotos</a>
-      <a href="revisao.html" class="active">Revisão</a>
-      <a href="galeria.html">Galeria</a>
+      <a href="revisao.html">Revisão</a>
+      <a href="galeria.html" class="active">Galeria</a>
       <a href="professores.html" id="nav-professores" hidden>Professoras</a>
     </nav>
     <div class="app-header-actions">
@@ -36,23 +35,24 @@
   <main class="app-main">
 
     <section class="card">
-      <h2>Fotos aguardando identificação</h2>
-      <p class="card-subtitle" id="revisao-subtitle">Carregando...</p>
+      <h2>Galeria</h2>
+      <p class="card-subtitle" id="galeria-subtitle">Veja as fotos organizadas por turma, aluno e atividade</p>
 
-      <div class="field">
-        <label for="turma-filtro">Filtrar por turma</label>
-        <select id="turma-filtro">
-          <option value="">Todas as turmas</option>
+      <nav id="galeria-breadcrumb" class="galeria-breadcrumb" hidden></nav>
+
+      <div class="field" id="galeria-turma-field">
+        <label for="galeria-turma-select">Turma</label>
+        <select id="galeria-turma-select">
+          <option value="">Selecione uma turma</option>
         </select>
       </div>
 
-      <button id="descartar-todas-button" class="btn-ghost" hidden style="margin-bottom: 12px;">Descartar todas as fotos desta lista</button>
-
-      <div id="revisao-list" class="results-list"></div>
+      <p id="galeria-vazio" class="empty-state" hidden></p>
+      <div id="galeria-grid" class="galeria-grid"></div>
     </section>
 
   </main>
 
-  <script type="module" src="js/revisao.js?v=20260727d"></script>
+  <script type="module" src="js/galeria.js?v=20260727d"></script>
 </body>
 </html>
