@@ -20,7 +20,7 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, estaEmModoAdmin } from "./roles.js";
+import { configurarAlternadorVisao } from "./roles.js";
 import { TURMAS, NOMES_SEGMENTO } from "./turmas.js";
 
 // ---------- Elementos ----------
@@ -258,7 +258,6 @@ function carregarAlunos() {
 
       const card = document.createElement("div");
       card.className = "student-card";
-      const podeExcluir = estaEmModoAdmin(usuarioAtual.email);
       card.innerHTML = `
         <button class="student-edit" title="Editar aluno" data-id="${docSnap.id}">✎</button>
         <img src="${aluno.foto}" alt="Foto de ${aluno.nome}" class="student-photo">
@@ -266,7 +265,7 @@ function carregarAlunos() {
           <p class="student-name">${aluno.nome}</p>
           <p class="student-class">${aluno.turma}</p>
         </div>
-        ${podeExcluir ? `<button class="student-delete" title="Remover aluno" data-id="${docSnap.id}">×</button>` : ""}
+        <button class="student-delete" title="Remover aluno" data-id="${docSnap.id}">×</button>
       `;
       studentsList.appendChild(card);
     });
