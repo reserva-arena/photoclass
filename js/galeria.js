@@ -6,7 +6,7 @@
 // consultar o Google Drive ao vivo, então é rápido pra qualquer um
 // que tenha acesso ao app (não exige autorização do Drive).
 
-import { auth, db } from "./firebase-config.js?v=20260727n";
+import { auth, db } from "./firebase-config.js?v=20260727o";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -14,15 +14,15 @@ import {
   where,
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727n";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727o";
 import {
   garantirTokenAcesso,
   obterOuCriarPasta,
   compartilharPasta,
   verificarCompartilhamento,
   removerCompartilhamento
-} from "./drive-upload.js?v=20260727n";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260727n";
+} from "./drive-upload.js?v=20260727o";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260727o";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");

@@ -5,7 +5,7 @@
 // direto no navegador do professor - nenhuma foto sai
 // do dispositivo até o momento de salvar.
 
-import { auth, db } from "./firebase-config.js?v=20260727n";
+import { auth, db } from "./firebase-config.js?v=20260727o";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -15,10 +15,10 @@ import {
   addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727n";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727n";
-import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727n";
-import { aprenderComFoto } from "./aprendizado.js?v=20260727n";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727o";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727o";
+import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727o";
+import { aprenderComFoto } from "./aprendizado.js?v=20260727o";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")
@@ -563,6 +563,7 @@ saveButton.addEventListener("click", async () => {
     // automático (via select escondido) + os marcados manualmente na
     // checklist de cada foto
     const itensParaEnviar = []; // { indiceFoto, aluno: {id,nome} | null, pendente }
+    let rostosDescartadosAutomatico = 0;
 
     document.querySelectorAll(".face-select").forEach((select) => {
       if (select.value === "__ignorar__") return;
@@ -596,12 +597,25 @@ saveButton.addEventListener("click", async () => {
       // não ensina o sistema nesses casos
       const semAmbiguidade = facesParaConferir.length === 1 && marcados.length === 1;
 
+      // Se a turma inteira já foi identificada nessa foto (automáticos +
+      // marcados aqui), qualquer rosto que sobrar não pode ser de
+      // nenhum aluno - descarta na hora, sem nem subir pro Drive, em
+      // vez de mandar pra Revisão perguntar de novo pra ninguém
+      const idsAutoNestaFoto = resultado.faces.filter(ehAltaConfianca).map((f) => f.alunoId);
+      const totalIdentificadosNestaFoto = new Set([...idsAutoNestaFoto, ...marcados.map((m) => m.id)]).size;
+      const turmaEsgotadaNestaFoto = totalIdentificadosNestaFoto >= alunosDaTurma.length;
+
       // Casa cada rosto pendente com um aluno marcado; se sobrar aluno
-      // marcado, cria envio extra; se sobrar rosto sem ninguém marcado,
-      // vai como pendente pra Revisão (não perde a foto)
+      // marcado, cria envio extra; se sobrar rosto sem ninguém marcado
+      // (e ainda tiver aluno da turma sem aparecer nessa foto), vai
+      // como pendente pra Revisão (não perde a foto)
       const total = Math.max(facesParaConferir.length, marcados.length);
       for (let i = 0; i < total; i++) {
         const aluno = marcados[i] || null;
+        if (!aluno && turmaEsgotadaNestaFoto) {
+          rostosDescartadosAutomatico++;
+          continue;
+        }
         itensParaEnviar.push({ indiceFoto, aluno, pendente: !aluno, aprender: semAmbiguidade && Boolean(aluno) });
       }
     });
@@ -663,7 +677,8 @@ saveButton.addEventListener("click", async () => {
     }
 
     atualizarProgresso(100, "Concluído!");
-    saveSuccess.textContent = `${salvos} foto(s) salva(s) com sucesso no Google Drive!`;
+    saveSuccess.textContent = `${salvos} foto(s) salva(s) com sucesso no Google Drive!`
+      + (rostosDescartadosAutomatico > 0 ? ` (${rostosDescartadosAutomatico} rosto(s) extra(s) ignorado(s) automaticamente - a turma toda já tinha sido identificada nessa(s) foto(s))` : "");
     saveSuccess.hidden = false;
 
     if (pendentesSalvos > 0) {
