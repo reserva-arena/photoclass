@@ -5,7 +5,7 @@
 // a nenhum aluno automaticamente aparecem aqui, pra professora
 // resolver manualmente sem precisar subir tudo de novo.
 
-import { auth, db } from "./firebase-config.js?v=20260727k";
+import { auth, db } from "./firebase-config.js?v=20260727l";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -19,10 +19,10 @@ import {
   getDocs,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727k";
-import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, copiarArquivo, excluirArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727k";
-import { aprenderComFoto } from "./aprendizado.js?v=20260727k";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260727k";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727l";
+import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, copiarArquivo, excluirArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727l";
+import { aprenderComFoto } from "./aprendizado.js?v=20260727l";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260727l";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -232,7 +232,7 @@ function renderizarLista(docs, jaIdentificadosPorGrupo = new Map()) {
 
     const semNinguemPraMarcar = opcoesAlunos === "";
     const checklistOuAviso = semNinguemPraMarcar
-      ? `<p class="card-subtitle">Ninguém mais da turma pra marcar aqui. Sobrou ${docsGrupo.length} arquivo${docsGrupo.length > 1 ? "s" : ""} nessa foto sem dono (provavelmente não é aluno - um adulto, visitante etc). Só dá pra descartar; as fotos já identificadas acima <strong>não</strong> serão afetadas.</p>`
+      ? `<p class="card-subtitle">${docsGrupo.length} arquivo${docsGrupo.length > 1 ? "s" : ""} sobrando sem aluno pra marcar. Descartar não afeta quem já foi identificado.</p>`
       : opcoesAlunos;
 
     const card = document.createElement("div");
