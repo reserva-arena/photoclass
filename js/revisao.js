@@ -5,7 +5,7 @@
 // a nenhum aluno automaticamente aparecem aqui, pra professora
 // resolver manualmente sem precisar subir tudo de novo.
 
-import { auth, db } from "./firebase-config.js?v=20260727j";
+import { auth, db } from "./firebase-config.js?v=20260727k";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -19,10 +19,10 @@ import {
   getDocs,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727j";
-import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, copiarArquivo, excluirArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727j";
-import { aprenderComFoto } from "./aprendizado.js?v=20260727j";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260727j";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727k";
+import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, copiarArquivo, excluirArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727k";
+import { aprenderComFoto } from "./aprendizado.js?v=20260727k";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260727k";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -230,6 +230,11 @@ function renderizarLista(docs, jaIdentificadosPorGrupo = new Map()) {
       ? `<p class="card-subtitle" style="margin: 2px 0; color: var(--color-teal);">✓ Já identificado(s) nesta foto: ${jaIdentificados.map((a) => a.nome).join(", ")}</p>`
       : "";
 
+    const semNinguemPraMarcar = opcoesAlunos === "";
+    const checklistOuAviso = semNinguemPraMarcar
+      ? `<p class="card-subtitle">Ninguém mais da turma pra marcar aqui. Sobrou ${docsGrupo.length} arquivo${docsGrupo.length > 1 ? "s" : ""} nessa foto sem dono (provavelmente não é aluno - um adulto, visitante etc). Só dá pra descartar; as fotos já identificadas acima <strong>não</strong> serão afetadas.</p>`
+      : opcoesAlunos;
+
     const card = document.createElement("div");
     card.className = "result-item";
     card.innerHTML = `
@@ -237,13 +242,13 @@ function renderizarLista(docs, jaIdentificadosPorGrupo = new Map()) {
       <div class="result-faces">
         <span class="face-confidence">Turma: ${item.turma}${item.atividade ? ` · ${item.atividade}` : ""}</span>
         ${avisoJaIdentificados}
-        <p class="card-subtitle" style="margin: 2px 0;">Tem mais alguém na foto? Marque quem falta.</p>
+        <p class="card-subtitle" style="margin: 2px 0;">${semNinguemPraMarcar ? "" : "Tem mais alguém na foto? Marque quem falta."}</p>
         <div class="revisao-alunos-checklist" data-grupo="${grupoId}">
-          ${opcoesAlunos || "<span class=\"card-subtitle\">Todo mundo já foi identificado nessa foto.</span>"}
+          ${checklistOuAviso}
         </div>
         <div class="result-face">
-          <button class="btn-ghost confirmar-btn" data-grupo="${grupoId}">Confirmar</button>
-          <button class="btn-ghost descartar-btn" data-grupo="${grupoId}">Descartar</button>
+          ${semNinguemPraMarcar ? "" : `<button class="btn-ghost confirmar-btn" data-grupo="${grupoId}">Confirmar</button>`}
+          <button class="btn-ghost descartar-btn" data-grupo="${grupoId}">Descartar${semNinguemPraMarcar ? ` (${docsGrupo.length})` : ""}</button>
         </div>
       </div>
     `;
