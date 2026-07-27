@@ -3,8 +3,12 @@
 // ============================================
 // Por enquanto, quem é admin é definido por uma lista fixa de e-mails.
 // Só essas contas veem o botão de alternar entre visão de Admin e
-// visão de Professor - as demais professoras sempre usam a visão
-// de Professor, sem opção de alternar.
+// visão de Professor, e o menu "Professores" - as demais professoras
+// sempre usam a visão de Professor, restrita às turmas liberadas
+// pra elas (coleção "professores" no Firestore).
+
+import { db } from "./firebase-config.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const ADMIN_EMAILS = [
   "luciano.galdino@colegioarena.com.br"
@@ -51,4 +55,28 @@ export function configurarAlternadorVisao(email) {
 function atualizarTextoBotao(botao) {
   const modo = getModoVisualizacao();
   botao.textContent = modo === "admin" ? "👤 Ver como Professor" : "🛠 Ver como Admin";
+}
+
+// ---------- Turmas permitidas por professora ----------
+
+// Retorna a lista de turmas que essa conta pode acessar.
+// null = acesso total (é admin). [] = ainda sem nenhuma turma liberada.
+export async function obterTurmasPermitidas(email) {
+  if (isAdminEmail(email)) return null;
+
+  try {
+    const snap = await getDoc(doc(db, "professores", email));
+    if (!snap.exists()) return [];
+    return snap.data().turmas || [];
+  } catch (erro) {
+    console.error(erro);
+    return [];
+  }
+}
+
+// Mostra o link "Professores" no menu só pra conta admin
+export function configurarNavProfessores(email) {
+  const link = document.getElementById("nav-professores");
+  if (!link) return;
+  link.hidden = !isAdminEmail(email);
 }

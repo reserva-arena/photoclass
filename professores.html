@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PhotoClass - Alunos</title>
+  <title>PhotoClass - Professoras</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -18,10 +18,10 @@
     </div>
     <nav class="app-header-nav">
       <a href="dashboard.html">Painel</a>
-      <a href="alunos.html" class="active">Alunos</a>
+      <a href="alunos.html">Alunos</a>
       <a href="fotos.html">Fotos</a>
       <a href="revisao.html">Revisão</a>
-      <a href="professores.html" id="nav-professores" hidden>Professoras</a>
+      <a href="professores.html" id="nav-professores" class="active" hidden>Professoras</a>
     </nav>
     <div class="app-header-actions">
       <button id="view-toggle" class="btn-ghost" hidden></button>
@@ -33,32 +33,18 @@
   <main class="app-main">
 
     <section class="card">
-      <h2 id="form-title">Cadastrar aluno</h2>
-      <p class="card-subtitle">Educação Infantil</p>
+      <h2 id="form-title">Liberar turma(s) para uma professora</h2>
+      <p class="card-subtitle">O login dela precisa já existir no Firebase Authentication</p>
 
-      <form id="student-form" novalidate>
+      <form id="professor-form" novalidate>
         <div class="field">
-          <label for="nome">Nome completo</label>
-          <input type="text" id="nome" name="nome" required placeholder="Ex: Maria Eduarda Silva">
+          <label for="email-input">E-mail da professora</label>
+          <input type="email" id="email-input" required placeholder="fulana@colegioarena.com.br">
         </div>
 
         <div class="field">
-          <label for="turma">Turma</label>
-          <select id="turma" name="turma" required>
-            <option value="">Selecione a turma</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="foto">Foto de referência</label>
-          <div class="photo-upload">
-            <div class="photo-preview" id="photo-preview">
-              <span id="photo-preview-placeholder">Sem foto</span>
-              <img id="photo-preview-img" hidden alt="Pré-visualização da foto">
-            </div>
-            <input type="file" id="foto" name="foto" accept="image/*" required>
-          </div>
-          <p id="foto-hint" class="card-subtitle" hidden style="margin-top: 6px;">Deixe em branco pra manter a foto atual</p>
+          <label>Turmas que ela pode acessar</label>
+          <div id="turmas-checklist" class="turmas-checklist"></div>
         </div>
 
         <p id="form-error" class="error-message" role="alert" hidden></p>
@@ -66,7 +52,7 @@
 
         <div style="display: flex; gap: 10px;">
           <button type="submit" id="submit-button" class="btn-primary">
-            <span id="submit-button-text">Cadastrar aluno</span>
+            <span id="submit-button-text">Salvar</span>
           </button>
           <button type="button" id="cancel-edit-button" class="btn-ghost" hidden>Cancelar edição</button>
         </div>
@@ -74,14 +60,14 @@
     </section>
 
     <section class="card">
-      <h2>Alunos cadastrados</h2>
-      <p class="card-subtitle" id="students-count">Carregando...</p>
+      <h2>Professoras cadastradas</h2>
+      <p class="card-subtitle" id="professores-count">Carregando...</p>
 
-      <div id="students-list" class="students-grid"></div>
+      <div id="professores-list" class="results-list"></div>
     </section>
 
   </main>
 
-  <script type="module" src="js/alunos.js"></script>
+  <script type="module" src="js/professores.js"></script>
 </body>
 </html>

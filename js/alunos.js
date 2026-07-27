@@ -16,11 +16,12 @@ import {
   deleteDoc,
   doc,
   query,
+  where,
   orderBy,
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao } from "./roles.js";
+import { configurarAlternadorVisao, configurarNavProfessores, obterTurmasPermitidas } from "./roles.js";
 import { TURMAS, NOMES_SEGMENTO } from "./turmas.js";
 
 // ---------- Elementos ----------
@@ -34,13 +35,19 @@ const turmaInput = document.getElementById("turma");
 const cancelEditButton = document.getElementById("cancel-edit-button");
 const fotoHint = document.getElementById("foto-hint");
 
-// Preenche o select de turmas, agrupado por segmento
+// Preenche o select de turmas, agrupado por segmento - restrito às
+// turmas permitidas quando não é admin (turmasPermitidas === null = todas)
 function preencherTurmas() {
-  const segmentos = [...new Set(TURMAS.map((t) => t.segmento))];
+  const turmasVisiveis = turmasPermitidas === null
+    ? TURMAS
+    : TURMAS.filter((t) => turmasPermitidas.includes(t.nome));
+
+  turmaInput.innerHTML = `<option value="">Selecione a turma</option>`;
+  const segmentos = [...new Set(turmasVisiveis.map((t) => t.segmento))];
   segmentos.forEach((segmento) => {
     const grupo = document.createElement("optgroup");
     grupo.label = NOMES_SEGMENTO[segmento] || segmento;
-    TURMAS.filter((t) => t.segmento === segmento).forEach((turma) => {
+    turmasVisiveis.filter((t) => t.segmento === segmento).forEach((turma) => {
       const option = document.createElement("option");
       option.value = turma.nome;
       option.textContent = turma.nome;
@@ -49,7 +56,6 @@ function preencherTurmas() {
     turmaInput.appendChild(grupo);
   });
 }
-preencherTurmas();
 const fotoInput = document.getElementById("foto");
 const photoPreview = document.getElementById("photo-preview-img");
 const photoPreviewPlaceholder = document.getElementById("photo-preview-placeholder");
@@ -62,6 +68,7 @@ const studentsList = document.getElementById("students-list");
 const studentsCount = document.getElementById("students-count");
 
 let usuarioAtual = null;
+let turmasPermitidas = null; // null = admin (todas); [] = nenhuma turma liberada ainda
 let alunoEmEdicaoId = null; // null = modo cadastro; senão, id do aluno sendo editado
 let fotoBase64EmEdicao = null; // guarda a foto atual do aluno, caso não troque por uma nova
 const alunosCache = new Map(); // id -> dados do aluno, pra reaproveitar ao entrar em edição
@@ -74,7 +81,12 @@ onAuthStateChanged(auth, (user) => {
     usuarioAtual = user;
     userEmailLabel.textContent = user.email;
     configurarAlternadorVisao(user.email);
-    carregarAlunos();
+    configurarNavProfessores(user.email);
+    obterTurmasPermitidas(user.email).then((turmas) => {
+      turmasPermitidas = turmas;
+      preencherTurmas();
+      carregarAlunos();
+    });
   }
 });
 
@@ -190,6 +202,11 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
+  if (turmasPermitidas !== null && !turmasPermitidas.includes(turma)) {
+    mostrarErro("Você não tem permissão para essa turma.");
+    return;
+  }
+
   // Limite de tamanho pra não estourar o documento do Firestore (máx. 1MB por documento)
   if (arquivo && arquivo.size > 700 * 1024) {
     mostrarErro("A foto está muito grande. Escolha uma imagem menor (até 700KB).");
@@ -238,8 +255,17 @@ form.addEventListener("submit", async (event) => {
 
 // ---------- Lista de alunos em tempo real ----------
 function carregarAlunos() {
+  // Professora sem nenhuma turma liberada ainda: nem consulta o Firestore
+  if (turmasPermitidas !== null && turmasPermitidas.length === 0) {
+    studentsList.innerHTML = `<p class="empty-state">Você ainda não tem nenhuma turma liberada. Fale com o administrador do PhotoClass.</p>`;
+    studentsCount.textContent = "Nenhuma turma liberada";
+    return;
+  }
+
   const alunosRef = collection(db, "alunos");
-  const consulta = query(alunosRef, orderBy("criadoEm", "desc"));
+  const consulta = turmasPermitidas === null
+    ? query(alunosRef, orderBy("criadoEm", "desc"))
+    : query(alunosRef, where("turma", "in", turmasPermitidas));
 
   onSnapshot(consulta, (snapshot) => {
     if (snapshot.empty) {
@@ -248,11 +274,16 @@ function carregarAlunos() {
       return;
     }
 
+    let docsOrdenados = [...snapshot.docs];
+    if (turmasPermitidas !== null) {
+      docsOrdenados.sort((a, b) => (b.data().criadoEm?.toMillis() || 0) - (a.data().criadoEm?.toMillis() || 0));
+    }
+
     studentsCount.textContent = `${snapshot.size} aluno${snapshot.size > 1 ? "s" : ""} cadastrado${snapshot.size > 1 ? "s" : ""}`;
 
     studentsList.innerHTML = "";
     alunosCache.clear();
-    snapshot.forEach((docSnap) => {
+    docsOrdenados.forEach((docSnap) => {
       const aluno = docSnap.data();
       alunosCache.set(docSnap.id, aluno);
 

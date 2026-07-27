@@ -17,7 +17,7 @@ import {
   doc,
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao } from "./roles.js";
+import { configurarAlternadorVisao, configurarNavProfessores, obterTurmasPermitidas } from "./roles.js";
 import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, excluirArquivo } from "./drive-upload.js";
 import { DRIVE_CONFIG } from "./drive-config.js";
 
@@ -30,6 +30,7 @@ const revisaoList = document.getElementById("revisao-list");
 let alunosPorTurma = {}; // { "9B": [{id, nome}, ...] }
 let pararDeEscutar = null;
 let itensPendentes = {}; // { docId: {turma, driveFileId, drivePastaId, ...} } - guardado pra poder mexer no Drive ao confirmar/descartar
+let turmasPermitidas = null; // null = admin (todas); [] = nenhuma turma liberada ainda
 
 onAuthStateChanged(auth, (user) => {
   if (!user) {
@@ -37,7 +38,11 @@ onAuthStateChanged(auth, (user) => {
   } else {
     userEmailLabel.textContent = user.email;
     configurarAlternadorVisao(user.email);
-    carregarTurmasEAlunos().then(() => escutarPendentes());
+    configurarNavProfessores(user.email);
+    obterTurmasPermitidas(user.email).then((turmas) => {
+      turmasPermitidas = turmas;
+      carregarTurmasEAlunos().then(() => escutarPendentes());
+    });
   }
 });
 
@@ -48,8 +53,16 @@ logoutButton.addEventListener("click", async () => {
 
 // ---------- Carrega turmas e alunos (para preencher os selects de correção) ----------
 async function carregarTurmasEAlunos() {
+  if (turmasPermitidas !== null && turmasPermitidas.length === 0) {
+    alunosPorTurma = {};
+    turmaFiltro.innerHTML = `<option value="">Nenhuma turma liberada pra você</option>`;
+    return;
+  }
+
   const alunosRef = collection(db, "alunos");
-  const snapshot = await getDocs(query(alunosRef));
+  const snapshot = turmasPermitidas === null
+    ? await getDocs(query(alunosRef))
+    : await getDocs(query(alunosRef, where("turma", "in", turmasPermitidas)));
 
   alunosPorTurma = {};
   snapshot.forEach((docSnap) => {
@@ -58,7 +71,7 @@ async function carregarTurmasEAlunos() {
     alunosPorTurma[aluno.turma].push({ id: docSnap.id, nome: aluno.nome });
   });
 
-  turmaFiltro.innerHTML = `<option value="">Todas as turmas</option>`;
+  turmaFiltro.innerHTML = `<option value="">${turmasPermitidas === null ? "Todas as turmas" : "Todas as minhas turmas"}</option>`;
   Object.keys(alunosPorTurma).sort().forEach((turma) => {
     const option = document.createElement("option");
     option.value = turma;
@@ -73,6 +86,12 @@ turmaFiltro.addEventListener("change", () => escutarPendentes());
 function escutarPendentes() {
   if (pararDeEscutar) pararDeEscutar();
 
+  if (turmasPermitidas !== null && turmasPermitidas.length === 0) {
+    revisaoSubtitle.textContent = "Você ainda não tem nenhuma turma liberada.";
+    revisaoList.innerHTML = `<p class="empty-state">Fale com o administrador do PhotoClass.</p>`;
+    return;
+  }
+
   const fotosRef = collection(db, "fotos");
   const turmaSelecionada = turmaFiltro.value;
 
@@ -81,25 +100,31 @@ function escutarPendentes() {
     : query(fotosRef, where("pendente", "==", true));
 
   pararDeEscutar = onSnapshot(consulta, (snapshot) => {
-    renderizarLista(snapshot);
+    // Quando não filtrou por uma turma específica, ainda restringe às
+    // turmas permitidas dela (evita ver pendências de outras turmas)
+    const docs = turmaSelecionada || turmasPermitidas === null
+      ? snapshot.docs
+      : snapshot.docs.filter((docSnap) => turmasPermitidas.includes(docSnap.data().turma));
+
+    renderizarLista(docs);
   }, (erro) => {
     console.error(erro);
     revisaoList.innerHTML = `<p class="empty-state">Não foi possível carregar. Verifique as regras do Firestore.</p>`;
   });
 }
 
-function renderizarLista(snapshot) {
-  if (snapshot.empty) {
+function renderizarLista(docs) {
+  if (docs.length === 0) {
     revisaoSubtitle.textContent = "Nenhuma foto pendente 🎉";
     revisaoList.innerHTML = `<p class="empty-state">Tudo revisado por aqui!</p>`;
     return;
   }
 
-  revisaoSubtitle.textContent = `${snapshot.size} foto(s) aguardando identificação`;
+  revisaoSubtitle.textContent = `${docs.length} foto(s) aguardando identificação`;
   revisaoList.innerHTML = "";
   itensPendentes = {};
 
-  snapshot.forEach((docSnap) => {
+  docs.forEach((docSnap) => {
     const item = docSnap.data();
     itensPendentes[docSnap.id] = item;
     const alunosDaTurma = alunosPorTurma[item.turma] || [];

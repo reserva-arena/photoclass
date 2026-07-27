@@ -558,3 +558,68 @@ select {
   cursor: pointer;
   padding: 0;
 }
+
+/* ---------- Tela de Professoras ---------- */
+
+.turmas-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.turmas-checklist-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-navy-light);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 6px 0 4px;
+}
+
+.turmas-checklist-group-label:first-child {
+  margin-top: 0;
+}
+
+.turmas-checklist-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-navy);
+  padding: 2px 0;
+}
+
+.professor-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+
+.professor-email {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-navy);
+}
+
+.professor-turmas {
+  font-size: 12px;
+  color: var(--color-navy-light);
+  margin-top: 4px;
+}
+
+.professor-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}

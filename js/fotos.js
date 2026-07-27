@@ -15,7 +15,7 @@ import {
   addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao } from "./roles.js";
+import { configurarAlternadorVisao, configurarNavProfessores, obterTurmasPermitidas } from "./roles.js";
 import { garantirTokenAcesso, obterPastaDestino, enviarArquivo } from "./drive-upload.js";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
@@ -43,6 +43,7 @@ const saveButton = document.getElementById("save-button");
 const saveSuccess = document.getElementById("save-success");
 
 let usuarioAtual = null;
+let turmasPermitidas = null; // null = admin (todas); [] = nenhuma turma liberada ainda
 let alunosDaTurma = []; // [{id, nome, foto}]
 let modelosCarregados = false;
 let resultadosProcessados = []; // [{ fotoDataUrl, faces: [{alunoId, alunoNome, distancia}] }]
@@ -55,7 +56,11 @@ onAuthStateChanged(auth, (user) => {
     usuarioAtual = user;
     userEmailLabel.textContent = user.email;
     configurarAlternadorVisao(user.email);
-    carregarTurmas();
+    configurarNavProfessores(user.email);
+    obterTurmasPermitidas(user.email).then((turmas) => {
+      turmasPermitidas = turmas;
+      carregarTurmas();
+    });
   }
 });
 
@@ -66,6 +71,25 @@ logoutButton.addEventListener("click", async () => {
 
 // ---------- Carregar turmas disponíveis ----------
 async function carregarTurmas() {
+  // Professora sem turma liberada ainda: nem mostra o formulário
+  if (turmasPermitidas !== null && turmasPermitidas.length === 0) {
+    turmaSelect.innerHTML = `<option value="">Nenhuma turma liberada pra você</option>`;
+    return;
+  }
+
+  // Já sabemos exatamente quais turmas ela pode usar - não precisa nem consultar o Firestore
+  if (turmasPermitidas !== null) {
+    turmaSelect.innerHTML = `<option value="">Selecione uma turma</option>`;
+    [...turmasPermitidas].sort().forEach((turma) => {
+      const option = document.createElement("option");
+      option.value = turma;
+      option.textContent = turma;
+      turmaSelect.appendChild(option);
+    });
+    return;
+  }
+
+  // Admin: mostra todas as turmas que já têm algum aluno cadastrado
   const alunosRef = collection(db, "alunos");
   const consulta = query(alunosRef);
   const snapshot = await getDocs(consulta);
