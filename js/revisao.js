@@ -93,6 +93,16 @@ async function carregarTurmasEAlunos() {
 
 turmaFiltro.addEventListener("change", () => escutarPendentes());
 
+// ---------- Zoom na foto (clique pra ampliar) ----------
+revisaoList.addEventListener("click", (evento) => {
+  if (!evento.target.classList.contains("js-abrir-foto")) return;
+  const overlay = document.createElement("div");
+  overlay.className = "lightbox-overlay";
+  overlay.innerHTML = `<img src="${evento.target.src}" alt="Foto ampliada">`;
+  overlay.addEventListener("click", () => overlay.remove());
+  document.body.appendChild(overlay);
+});
+
 descartarTodasButton.addEventListener("click", async () => {
   const total = itensPendentes.size;
   if (total === 0) return;
@@ -188,7 +198,7 @@ function renderizarLista(docs) {
     const card = document.createElement("div");
     card.className = "result-item";
     card.innerHTML = `
-      <img src="${item.foto}" alt="Foto pendente" class="result-photo">
+      <img src="${item.foto}" alt="Foto pendente" class="result-photo result-photo--grande js-abrir-foto">
       <div class="result-faces">
         <span class="face-confidence">Turma: ${item.turma}${item.atividade ? ` · ${item.atividade}` : ""}</span>
         <p class="card-subtitle" style="margin: 2px 0;">Tem mais de uma criança na foto? Marque todas.</p>
