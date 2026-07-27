@@ -182,6 +182,26 @@ export async function enviarArquivo(blob, nomeArquivo, pastaId, accessToken) {
   return resposta.json();
 }
 
+// Cria uma CÓPIA de um arquivo já existente numa pasta diferente
+// (usado quando uma foto tem mais de um aluno - já que num Drive
+// Compartilhado um arquivo só pode ter uma pasta-mãe, então pra
+// aparecer em mais de uma pasta de aluno é preciso duplicar)
+export async function copiarArquivo(fileId, novaPastaId, novoNome, accessToken) {
+  const resposta = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}/copy?supportsAllDrives=true&fields=id,webViewLink`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ name: novoNome, parents: [novaPastaId] })
+    }
+  );
+  if (!resposta.ok) throw new Error(`Erro ao copiar o arquivo no Drive: ${await mensagemDeErroGoogle(resposta)}`);
+  return resposta.json();
+}
+
 // Move um arquivo de uma pasta pra outra (usado na tela de Revisão,
 // quando uma foto pendente é finalmente identificada)
 export async function moverArquivo(fileId, pastaOrigemId, pastaDestinoId, accessToken) {

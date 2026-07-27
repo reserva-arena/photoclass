@@ -14,11 +14,13 @@ import {
   onSnapshot,
   updateDoc,
   deleteDoc,
+  addDoc,
   doc,
-  getDocs
+  getDocs,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { configurarAlternadorVisao, configurarNavProfessores, obterTurmasPermitidas } from "./roles.js";
-import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, excluirArquivo } from "./drive-upload.js";
+import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, copiarArquivo, excluirArquivo } from "./drive-upload.js";
 import { DRIVE_CONFIG } from "./drive-config.js";
 
 const userEmailLabel = document.getElementById("user-email");
@@ -136,7 +138,9 @@ function renderizarLista(docs) {
     const item = docSnap.data();
     itensPendentes[docSnap.id] = item;
     const alunosDaTurma = alunosPorTurma[item.turma] || [];
-    const opcoesAlunos = alunosDaTurma.map((a) => `<option value="${a.id}">${a.nome}</option>`).join("");
+    const opcoesAlunos = alunosDaTurma
+      .map((a) => `<label class="revisao-aluno-opcao"><input type="checkbox" value="${a.id}" data-nome="${a.nome}"> ${a.nome}</label>`)
+      .join("");
 
     const card = document.createElement("div");
     card.className = "result-item";
@@ -144,11 +148,9 @@ function renderizarLista(docs) {
       <img src="${item.foto}" alt="Foto pendente" class="result-photo">
       <div class="result-faces">
         <span class="face-confidence">Turma: ${item.turma}${item.atividade ? ` · ${item.atividade}` : ""}</span>
-        <div class="result-face">
-          <select class="face-select" data-id="${docSnap.id}">
-            <option value="">Selecione o aluno...</option>
-            ${opcoesAlunos}
-          </select>
+        <p class="card-subtitle" style="margin: 2px 0;">Tem mais de uma criança na foto? Marque todas.</p>
+        <div class="revisao-alunos-checklist" data-id="${docSnap.id}">
+          ${opcoesAlunos}
         </div>
         <div class="result-face">
           <button class="btn-ghost confirmar-btn" data-id="${docSnap.id}">Confirmar</button>
@@ -162,25 +164,37 @@ function renderizarLista(docs) {
   document.querySelectorAll(".confirmar-btn").forEach((botao) => {
     botao.addEventListener("click", async () => {
       const id = botao.getAttribute("data-id");
-      const select = document.querySelector(`select[data-id="${id}"]`);
-      const alunoId = select.value;
-      if (!alunoId) {
-        alert("Selecione um aluno antes de confirmar.");
+      const checklist = document.querySelector(`.revisao-alunos-checklist[data-id="${id}"]`);
+      const marcados = [...checklist.querySelectorAll("input:checked")].map((input) => ({
+        id: input.value,
+        nome: input.getAttribute("data-nome")
+      }));
+
+      if (marcados.length === 0) {
+        alert("Marque ao menos um aluno antes de confirmar.");
         return;
       }
-      const alunoNome = select.options[select.selectedIndex].textContent;
+
       const textoOriginal = botao.textContent;
 
       try {
         const item = itensPendentes[id];
+        const temArquivoNoDrive = item && item.driveFileId && item.drivePastaId;
+        let accessToken = null;
+        let pastaTurma = null;
 
-        // Se a foto tiver um arquivo real no Drive, move pra pasta do aluno
-        if (item && item.driveFileId && item.drivePastaId) {
+        if (temArquivoNoDrive) {
           botao.disabled = true;
-          botao.textContent = "Movendo no Drive...";
-          const accessToken = await garantirTokenAcesso();
-          const pastaTurma = await obterOuCriarPasta(item.turma, DRIVE_CONFIG.pastaRaizId, accessToken);
-          const pastaAluno = await obterOuCriarPasta(alunoNome, pastaTurma, accessToken);
+          accessToken = await garantirTokenAcesso();
+          pastaTurma = await obterOuCriarPasta(item.turma, DRIVE_CONFIG.pastaRaizId, accessToken);
+        }
+
+        // Primeiro aluno marcado: reaproveita este mesmo documento/arquivo (move no Drive)
+        const [primeiro, ...demais] = marcados;
+
+        if (temArquivoNoDrive) {
+          botao.textContent = demais.length > 0 ? `Movendo (1/${marcados.length})...` : "Movendo no Drive...";
+          const pastaAluno = await obterOuCriarPasta(primeiro.nome, pastaTurma, accessToken);
           const pastaDestino = item.atividade
             ? await obterOuCriarPasta(item.atividade, pastaAluno, accessToken)
             : pastaAluno;
@@ -188,10 +202,50 @@ function renderizarLista(docs) {
         }
 
         await updateDoc(doc(db, "fotos", id), {
-          alunoId,
-          alunoNome,
+          alunoId: primeiro.id,
+          alunoNome: primeiro.nome,
           pendente: false
         });
+
+        // Demais alunos marcados: cria uma CÓPIA do arquivo na pasta de cada um
+        // (não dá pra mover pro mesmo arquivo pra vários lugares num Drive Compartilhado)
+        for (let i = 0; i < demais.length; i++) {
+          const aluno = demais[i];
+          let driveFileId = null;
+          let driveViewLink = null;
+          let drivePastaId = null;
+
+          if (temArquivoNoDrive) {
+            botao.textContent = `Copiando (${i + 2}/${marcados.length})...`;
+            const pastaAluno = await obterOuCriarPasta(aluno.nome, pastaTurma, accessToken);
+            const pastaDestino = item.atividade
+              ? await obterOuCriarPasta(item.atividade, pastaAluno, accessToken)
+              : pastaAluno;
+            const copia = await copiarArquivo(
+              item.driveFileId,
+              pastaDestino,
+              `${aluno.nome}_${Date.now()}.jpg`,
+              accessToken
+            );
+            driveFileId = copia.id;
+            driveViewLink = copia.webViewLink;
+            drivePastaId = pastaDestino;
+          }
+
+          await addDoc(collection(db, "fotos"), {
+            alunoId: aluno.id,
+            alunoNome: aluno.nome,
+            turma: item.turma,
+            atividade: item.atividade || null,
+            foto: item.foto,
+            driveFileId,
+            driveViewLink,
+            drivePastaId,
+            pendente: false,
+            criadoPor: item.criadoPor || null,
+            criadoEm: serverTimestamp()
+          });
+        }
       } catch (erro) {
         console.error(erro);
         alert(`Erro ao mover a foto no Drive:\n\n${erro.message || erro}`);

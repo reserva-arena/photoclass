@@ -479,6 +479,23 @@ a.stat-card:hover {
   color: var(--color-amber-dark);
 }
 
+/* ---------- Revisão - checklist de alunos (multi-seleção) ---------- */
+
+.revisao-alunos-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 6px 0 10px;
+}
+
+.revisao-aluno-opcao {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-navy);
+}
+
 input[type="file"] {
   font-family: var(--font-body);
   font-size: 13px;
