@@ -5,7 +5,7 @@
 // direto no navegador do professor - nenhuma foto sai
 // do dispositivo até o momento de salvar.
 
-import { auth, db } from "./firebase-config.js?v=20260727e";
+import { auth, db } from "./firebase-config.js?v=20260727f";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -15,13 +15,16 @@ import {
   addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727e";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727e";
-import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727e";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727f";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727f";
+import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727f";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")
 const LIMIAR_ALTA_CONFIANCA = 0.58; // aceita automático quando similaridade >= 0.42 (distância = 1 - similaridade)
+function ehAltaConfianca(face) {
+  return Boolean(face.alunoId) && face.distancia < LIMIAR_ALTA_CONFIANCA && !face.duplicadoNaFoto;
+}
 const RESOLUCAO_DETECCAO = 608; // maior = detecta rostos menores melhor (fotos com várias pessoas), mas processa mais devagar
 
 // ---------- Elementos ----------
@@ -416,7 +419,7 @@ function renderizarResultados() {
   const totalFotos = resultadosProcessados.length;
   const totalRostos = resultadosProcessados.reduce((soma, r) => soma + r.faces.length, 0);
   const totalAutomaticos = resultadosProcessados.reduce(
-    (soma, r) => soma + r.faces.filter((f) => f.alunoId && f.distancia < LIMIAR_ALTA_CONFIANCA).length,
+    (soma, r) => soma + r.faces.filter(ehAltaConfianca).length,
     0
   );
 
@@ -434,58 +437,55 @@ function renderizarResultados() {
       .map((a) => `<option value="${a.id}">${a.nome}</option>`)
       .join("");
 
-    const facesHtml = resultado.faces.map((face, indiceFace) => {
-          const altaConfianca = face.alunoId && face.distancia < LIMIAR_ALTA_CONFIANCA && !face.duplicadoNaFoto;
+    // Rostos com alta confiança: selo verde + opção de corrigir (igual antes)
+    const facesAutoHtml = resultado.faces
+      .map((face, indiceFace) => ({ face, indiceFace }))
+      .filter(({ face }) => ehAltaConfianca(face))
+      .map(({ face, indiceFace }) => `
+        <div class="result-face face-auto" data-foto="${indiceFoto}" data-face="${indiceFace}">
+          <div class="face-auto-badge">
+            <span class="face-auto-check">✓</span>
+            <span>${face.alunoNome}</span>
+            <button type="button" class="face-auto-corrigir" data-foto="${indiceFoto}" data-face="${indiceFace}">Não é esse aluno? Corrigir</button>
+          </div>
+          <select data-foto="${indiceFoto}" data-face="${indiceFace}" class="face-select" hidden>
+            <option value="">Aguardando identificação</option>
+            ${opcoesAlunos}
+            <option value="__ignorar__">Ignorar (não é aluno)</option>
+          </select>
+        </div>
+      `).join("");
 
-          if (altaConfianca) {
-            // Reconhecido com alta confiança: já vai como confirmado,
-            // só mostra um selo + opção de corrigir se estiver errado
-            return `
-              <div class="result-face face-auto" data-foto="${indiceFoto}" data-face="${indiceFace}">
-                <div class="face-auto-badge">
-                  <span class="face-auto-check">✓</span>
-                  <span>${face.alunoNome}</span>
-                  <button type="button" class="face-auto-corrigir" data-foto="${indiceFoto}" data-face="${indiceFace}">Não é esse aluno? Corrigir</button>
-                </div>
-                <select data-foto="${indiceFoto}" data-face="${indiceFace}" class="face-select" hidden>
-                  <option value="">Aguardando identificação</option>
-                  ${opcoesAlunos}
-                  <option value="__ignorar__">Ignorar (não é aluno)</option>
-                </select>
-              </div>
-            `;
-          }
+    // Rostos que precisam de conferência manual: uma checklist só,
+    // em vez de um seletor pra cada um (evita repetir a turma inteira
+    // várias vezes numa foto de grupo)
+    const facesParaConferir = resultado.faces.filter((face) => !ehAltaConfianca(face));
+    const idsJaAutoNaFoto = new Set(resultado.faces.filter(ehAltaConfianca).map((f) => f.alunoId));
+    const alunosParaChecklist = alunosDaTurma.filter((a) => !idsJaAutoNaFoto.has(a.id));
 
-          return `
-            <div class="result-face">
-              <select data-foto="${indiceFoto}" data-face="${indiceFace}" class="face-select">
-                <option value="">Aguardando identificação</option>
-                ${opcoesAlunos}
-                <option value="__ignorar__">Ignorar (não é aluno)</option>
-              </select>
-              <span class="face-confidence">${
-                face.semDeteccao
-                  ? "rosto não detectado - selecione se souber quem é"
-                  : face.duplicadoNaFoto
-                    ? `⚠️ mesmo aluno em 2 rostos, confira`
-                    : face.alunoId
-                      ? `similaridade: ${(1 - face.distancia).toFixed(2)}`
-                      : "não reconhecido"
-              }</span>
-            </div>
-          `;
-        }).join("");
+    const checklistHtml = facesParaConferir.length === 0 ? "" : `
+      <div class="result-face">
+        <p class="card-subtitle" style="margin: 0 0 6px;">
+          ${facesParaConferir.length} rosto(s) pra conferir nessa foto${facesParaConferir.some((f) => f.semDeteccao) ? " (algum não foi detectado automaticamente)" : ""} - marque quem aparece:
+        </p>
+        <div class="revisao-alunos-checklist foto-checklist" data-foto="${indiceFoto}">
+          ${alunosParaChecklist.map((a) => `<label class="revisao-aluno-opcao"><input type="checkbox" value="${a.id}" data-nome="${a.nome}"> ${a.nome}</label>`).join("")}
+        </div>
+      </div>
+    `;
 
     item.innerHTML = `
-      <img src="${resultado.fotoDataUrl}" alt="Foto ${indiceFoto + 1}" class="result-photo">
-      <div class="result-faces">${facesHtml}</div>
+      <img src="${resultado.fotoDataUrl}" alt="Foto ${indiceFoto + 1}" class="result-photo result-photo--grande js-abrir-foto">
+      <div class="result-faces">${facesAutoHtml}${checklistHtml}</div>
     `;
     resultsList.appendChild(item);
 
-    // Pré-seleciona os selects (tanto os visíveis quanto os escondidos dos automáticos)
+    // Pré-seleciona os selects escondidos dos rostos automáticos, com o
+    // aluno já reconhecido (senão ficariam vazios até clicar em "Corrigir")
     resultado.faces.forEach((face, indiceFace) => {
+      if (!ehAltaConfianca(face)) return;
       const select = item.querySelector(`select[data-foto="${indiceFoto}"][data-face="${indiceFace}"]`);
-      if (select && face.alunoId) select.value = face.alunoId;
+      if (select) select.value = face.alunoId;
     });
   });
 
@@ -497,6 +497,21 @@ function renderizarResultados() {
       const select = linha.querySelector(".face-select");
       badge.hidden = true;
       select.hidden = false;
+      const foto = Number(select.getAttribute("data-foto"));
+      const face = Number(select.getAttribute("data-face"));
+      const dadosFace = resultadosProcessados[foto].faces[face];
+      if (dadosFace.alunoId) select.value = dadosFace.alunoId;
+    });
+  });
+
+  // Zoom ao clicar na foto (mesmo padrão da Revisão/Galeria)
+  resultsList.querySelectorAll(".js-abrir-foto").forEach((img) => {
+    img.addEventListener("click", () => {
+      const overlay = document.createElement("div");
+      overlay.className = "lightbox-overlay";
+      overlay.innerHTML = `<img src="${img.src}" alt="Foto ampliada">`;
+      overlay.addEventListener("click", () => overlay.remove());
+      document.body.appendChild(overlay);
     });
   });
 
@@ -520,26 +535,51 @@ saveButton.addEventListener("click", async () => {
     const dataHoje = new Date().toISOString().slice(0, 10); // AAAA-MM-DD
     const nomeAtividade = `${dataHoje} - ${atividadeInput.value.trim()}`;
 
-    const selects = [...document.querySelectorAll(".face-select")].filter(
-      (select) => select.value !== "__ignorar__" // ignora fotos descartadas
-    );
+    // Monta a lista de tudo que precisa ser enviado: os rostos com selo
+    // automático (via select escondido) + os marcados manualmente na
+    // checklist de cada foto
+    const itensParaEnviar = []; // { indiceFoto, aluno: {id,nome} | null, pendente }
+
+    document.querySelectorAll(".face-select").forEach((select) => {
+      if (select.value === "__ignorar__") return;
+      const indiceFoto = Number(select.getAttribute("data-foto"));
+      const pendente = select.value === "";
+      const aluno = pendente ? null : alunosDaTurma.find((a) => a.id === select.value);
+      itensParaEnviar.push({ indiceFoto, aluno, pendente });
+    });
+
+    resultadosProcessados.forEach((resultado, indiceFoto) => {
+      const facesParaConferir = resultado.faces.filter((face) => !ehAltaConfianca(face));
+      if (facesParaConferir.length === 0) return;
+
+      const checklist = resultsList.querySelector(`.foto-checklist[data-foto="${indiceFoto}"]`);
+      const marcados = checklist
+        ? [...checklist.querySelectorAll("input:checked")].map((input) => ({ id: input.value, nome: input.getAttribute("data-nome") }))
+        : [];
+
+      // Casa cada rosto pendente com um aluno marcado; se sobrar aluno
+      // marcado, cria envio extra; se sobrar rosto sem ninguém marcado,
+      // vai como pendente pra Revisão (não perde a foto)
+      const total = Math.max(facesParaConferir.length, marcados.length);
+      for (let i = 0; i < total; i++) {
+        const aluno = marcados[i] || null;
+        itensParaEnviar.push({ indiceFoto, aluno, pendente: !aluno });
+      }
+    });
+
     let salvos = 0;
     let pendentesSalvos = 0;
     const gruposPorFoto = new Map(); // indiceFoto -> ID compartilhado entre todos os rostos dessa mesma imagem
 
-    for (let indice = 0; indice < selects.length; indice++) {
-      const select = selects[indice];
-      saveButton.textContent = `Enviando ${indice + 1}/${selects.length}...`;
+    for (let indice = 0; indice < itensParaEnviar.length; indice++) {
+      const { indiceFoto, aluno, pendente } = itensParaEnviar[indice];
+      saveButton.textContent = `Enviando ${indice + 1}/${itensParaEnviar.length}...`;
       atualizarProgresso(
-        Math.round(((indice + 0.5) / selects.length) * 100),
-        `Enviando foto ${indice + 1} de ${selects.length} pro Drive...`
+        Math.round(((indice + 0.5) / itensParaEnviar.length) * 100),
+        `Enviando foto ${indice + 1} de ${itensParaEnviar.length} pro Drive...`
       );
 
-      const valor = select.value;
-      const indiceFoto = Number(select.getAttribute("data-foto"));
       const resultado = resultadosProcessados[indiceFoto];
-      const pendente = valor === "";
-      const aluno = pendente ? null : alunosDaTurma.find((a) => a.id === valor);
 
       if (!gruposPorFoto.has(indiceFoto)) gruposPorFoto.set(indiceFoto, crypto.randomUUID());
       const grupoFotoId = gruposPorFoto.get(indiceFoto);
