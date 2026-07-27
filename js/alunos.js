@@ -20,6 +20,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { configurarAlternadorVisao, configurarNavProfessores, obterTurmasPermitidas } from "./roles.js";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js";
 import { TURMAS, NOMES_SEGMENTO } from "./turmas.js";
 
 // ---------- Elementos ----------
@@ -84,6 +85,7 @@ onAuthStateChanged(auth, (user) => {
       turmasPermitidas = turmas;
       preencherTurmas();
       carregarAlunos();
+      mostrarAlertaPendentes(turmas);
     });
   }
 });

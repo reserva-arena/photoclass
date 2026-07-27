@@ -17,6 +17,7 @@ import {
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { configurarAlternadorVisao, configurarNavProfessores, obterTurmasPermitidas } from "./roles.js";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -40,7 +41,10 @@ onAuthStateChanged(auth, (user) => {
     const primeiroNome = user.email.split("@")[0].split(".")[0];
     welcomeTitle.textContent = `Bem-vindo(a), ${primeiroNome.charAt(0).toUpperCase() + primeiroNome.slice(1)}!`;
 
-    obterTurmasPermitidas(user.email).then((turmas) => carregarResumo(turmas));
+    obterTurmasPermitidas(user.email).then((turmas) => {
+      carregarResumo(turmas);
+      mostrarAlertaPendentes(turmas);
+    });
   }
 });
 

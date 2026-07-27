@@ -16,6 +16,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { configurarAlternadorVisao, configurarNavProfessores, obterTurmasPermitidas } from "./roles.js";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js";
 import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
@@ -67,6 +68,7 @@ onAuthStateChanged(auth, (user) => {
     obterTurmasPermitidas(user.email).then((turmas) => {
       turmasPermitidas = turmas;
       carregarTurmas();
+      mostrarAlertaPendentes(turmas);
     });
   }
 });

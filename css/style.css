@@ -479,6 +479,24 @@ a.stat-card:hover {
   color: var(--color-amber-dark);
 }
 
+/* ---------- Faixa de alerta de fotos pendentes (topo de qualquer página) ---------- */
+
+.alerta-pendentes-banner {
+  display: block;
+  text-align: center;
+  padding: 10px 16px;
+  background: var(--color-amber);
+  color: var(--color-white);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.alerta-pendentes-banner:hover {
+  background: var(--color-amber-dark);
+}
+
 /* ---------- Revisão - checklist de alunos (multi-seleção) ---------- */
 
 .revisao-alunos-checklist {
