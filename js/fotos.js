@@ -5,7 +5,7 @@
 // direto no navegador do professor - nenhuma foto sai
 // do dispositivo até o momento de salvar.
 
-import { auth, db } from "./firebase-config.js?v=20260727a";
+import { auth, db } from "./firebase-config.js?v=20260727b";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -15,9 +15,9 @@ import {
   addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727a";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727a";
-import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727a";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727b";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727b";
+import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727b";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")
@@ -377,6 +377,13 @@ processButton.addEventListener("click", async () => {
         if (f.alunoId && contagemPorAluno[f.alunoId] > 1) f.duplicadoNaFoto = true;
       });
 
+      // Se não detectou nenhum rosto (óculos, ângulo, contraluz...), não
+      // descarta a foto - mantém como pendente pra identificação manual,
+      // em vez de perder ela
+      if (faces.length === 0) {
+        faces.push({ alunoId: null, alunoNome: null, distancia: 1, semDeteccao: true });
+      }
+
       resultadosProcessados.push({
         arquivoOriginal: arquivo,
         fotoDataUrl: redimensionar(img),
@@ -427,9 +434,7 @@ function renderizarResultados() {
       .map((a) => `<option value="${a.id}">${a.nome}</option>`)
       .join("");
 
-    const facesHtml = resultado.faces.length === 0
-      ? `<p class="empty-state">Nenhum rosto detectado nessa foto.</p>`
-      : resultado.faces.map((face, indiceFace) => {
+    const facesHtml = resultado.faces.map((face, indiceFace) => {
           const altaConfianca = face.alunoId && face.distancia < LIMIAR_ALTA_CONFIANCA && !face.duplicadoNaFoto;
 
           if (altaConfianca) {
@@ -459,11 +464,13 @@ function renderizarResultados() {
                 <option value="__ignorar__">Ignorar (não é aluno)</option>
               </select>
               <span class="face-confidence">${
-                face.duplicadoNaFoto
-                  ? `⚠️ mesmo aluno em 2 rostos, confira`
-                  : face.alunoId
-                    ? `similaridade: ${(1 - face.distancia).toFixed(2)}`
-                    : "não reconhecido"
+                face.semDeteccao
+                  ? "rosto não detectado - selecione se souber quem é"
+                  : face.duplicadoNaFoto
+                    ? `⚠️ mesmo aluno em 2 rostos, confira`
+                    : face.alunoId
+                      ? `similaridade: ${(1 - face.distancia).toFixed(2)}`
+                      : "não reconhecido"
               }</span>
             </div>
           `;
