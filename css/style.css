@@ -978,7 +978,7 @@ select {
   font-size: 12px;
   font-weight: 600;
   color: var(--color-red);
-  margin-bottom: 8px;
+  margin-top: 10px;
   cursor: pointer;
 }
 

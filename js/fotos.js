@@ -5,7 +5,7 @@
 // direto no navegador do professor - nenhuma foto sai
 // do dispositivo até o momento de salvar.
 
-import { auth, db } from "./firebase-config.js?v=20260727i";
+import { auth, db } from "./firebase-config.js?v=20260727j";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -15,10 +15,10 @@ import {
   addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727i";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727i";
-import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727i";
-import { aprenderComFoto } from "./aprendizado.js?v=20260727i";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727j";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727j";
+import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727j";
+import { aprenderComFoto } from "./aprendizado.js?v=20260727j";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")
@@ -480,11 +480,11 @@ function renderizarResultados() {
     item.innerHTML = `
       <img src="${resultado.fotoDataUrl}" alt="Foto ${indiceFoto + 1}" class="result-photo result-photo--grande js-abrir-foto">
       <div class="result-faces">
+        ${facesAutoHtml}${checklistHtml}
         <label class="foto-ignorar-opcao">
           <input type="checkbox" class="foto-ignorar-checkbox" data-foto="${indiceFoto}">
-          🚫 Não salvar nenhuma foto desta imagem (não é da turma / não interessa)
+          ⚠️ Está errado? Desconsidere esta foto (não é da turma / não interessa)
         </label>
-        ${facesAutoHtml}${checklistHtml}
       </div>
     `;
     resultsList.appendChild(item);
