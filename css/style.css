@@ -515,3 +515,28 @@ select {
   color: var(--color-navy-light);
   white-space: nowrap;
 }
+
+.face-auto-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-navy);
+}
+
+.face-auto-badge .face-auto-check {
+  color: #1a7f4b;
+}
+
+.face-auto-corrigir {
+  font-size: 12px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  color: var(--color-navy-light);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}

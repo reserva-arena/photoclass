@@ -19,7 +19,8 @@ import { configurarAlternadorVisao } from "./roles.js";
 import { garantirTokenAcesso, obterPastaDestino, enviarArquivo } from "./drive-upload.js";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
-const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação
+const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")
+const LIMIAR_ALTA_CONFIANCA = 0.45; // abaixo disso, aceita automaticamente sem pedir revisão (nível "equilibrado")
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");
@@ -316,7 +317,14 @@ function renderizarResultados() {
 
   const totalFotos = resultadosProcessados.length;
   const totalRostos = resultadosProcessados.reduce((soma, r) => soma + r.faces.length, 0);
-  resultsSubtitle.textContent = `${totalFotos} foto(s) processada(s), ${totalRostos} rosto(s) encontrado(s)`;
+  const totalAutomaticos = resultadosProcessados.reduce(
+    (soma, r) => soma + r.faces.filter((f) => f.alunoId && f.distancia < LIMIAR_ALTA_CONFIANCA).length,
+    0
+  );
+
+  resultsSubtitle.textContent = totalAutomaticos > 0
+    ? `${totalFotos} foto(s) processada(s), ${totalRostos} rosto(s) — ${totalAutomaticos} reconhecido(s) automaticamente, ${totalRostos - totalAutomaticos} para conferir`
+    : `${totalFotos} foto(s) processada(s), ${totalRostos} rosto(s) encontrado(s)`;
 
   resultsList.innerHTML = "";
 
@@ -330,16 +338,39 @@ function renderizarResultados() {
 
     const facesHtml = resultado.faces.length === 0
       ? `<p class="empty-state">Nenhum rosto detectado nessa foto.</p>`
-      : resultado.faces.map((face, indiceFace) => `
-          <div class="result-face">
-            <select data-foto="${indiceFoto}" data-face="${indiceFace}" class="face-select">
-              <option value="">Aguardando identificação</option>
-              ${opcoesAlunos}
-              <option value="__ignorar__">Ignorar (não é aluno)</option>
-            </select>
-            <span class="face-confidence">${face.alunoId ? `similaridade: ${(1 - face.distancia).toFixed(2)}` : "não reconhecido"}</span>
-          </div>
-        `).join("");
+      : resultado.faces.map((face, indiceFace) => {
+          const altaConfianca = face.alunoId && face.distancia < LIMIAR_ALTA_CONFIANCA;
+
+          if (altaConfianca) {
+            // Reconhecido com alta confiança: já vai como confirmado,
+            // só mostra um selo + opção de corrigir se estiver errado
+            return `
+              <div class="result-face face-auto" data-foto="${indiceFoto}" data-face="${indiceFace}">
+                <div class="face-auto-badge">
+                  <span class="face-auto-check">✓</span>
+                  <span>${face.alunoNome}</span>
+                  <button type="button" class="face-auto-corrigir" data-foto="${indiceFoto}" data-face="${indiceFace}">Não é esse aluno? Corrigir</button>
+                </div>
+                <select data-foto="${indiceFoto}" data-face="${indiceFace}" class="face-select" hidden>
+                  <option value="">Aguardando identificação</option>
+                  ${opcoesAlunos}
+                  <option value="__ignorar__">Ignorar (não é aluno)</option>
+                </select>
+              </div>
+            `;
+          }
+
+          return `
+            <div class="result-face">
+              <select data-foto="${indiceFoto}" data-face="${indiceFace}" class="face-select">
+                <option value="">Aguardando identificação</option>
+                ${opcoesAlunos}
+                <option value="__ignorar__">Ignorar (não é aluno)</option>
+              </select>
+              <span class="face-confidence">${face.alunoId ? `similaridade: ${(1 - face.distancia).toFixed(2)}` : "não reconhecido"}</span>
+            </div>
+          `;
+        }).join("");
 
     item.innerHTML = `
       <img src="${resultado.fotoDataUrl}" alt="Foto ${indiceFoto + 1}" class="result-photo">
@@ -347,10 +378,21 @@ function renderizarResultados() {
     `;
     resultsList.appendChild(item);
 
-    // Pré-seleciona os selects com o aluno já reconhecido
+    // Pré-seleciona os selects (tanto os visíveis quanto os escondidos dos automáticos)
     resultado.faces.forEach((face, indiceFace) => {
       const select = item.querySelector(`select[data-foto="${indiceFoto}"][data-face="${indiceFace}"]`);
       if (select && face.alunoId) select.value = face.alunoId;
+    });
+  });
+
+  // Botão "Corrigir" troca o selo automático pelo select de verdade
+  resultsList.querySelectorAll(".face-auto-corrigir").forEach((botao) => {
+    botao.addEventListener("click", () => {
+      const linha = botao.closest(".face-auto");
+      const badge = linha.querySelector(".face-auto-badge");
+      const select = linha.querySelector(".face-select");
+      badge.hidden = true;
+      select.hidden = false;
     });
   });
 
