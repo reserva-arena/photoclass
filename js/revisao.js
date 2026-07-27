@@ -41,7 +41,15 @@ onAuthStateChanged(auth, (user) => {
     configurarNavProfessores(user.email);
     obterTurmasPermitidas(user.email).then((turmas) => {
       turmasPermitidas = turmas;
-      carregarTurmasEAlunos().then(() => escutarPendentes());
+      carregarTurmasEAlunos().then(() => {
+        // Se veio de um link "Ver pendentes na Revisão" (tela de Fotos),
+        // já abre filtrado na turma certa
+        const turmaDaUrl = new URLSearchParams(window.location.search).get("turma");
+        if (turmaDaUrl && [...turmaFiltro.options].some((o) => o.value === turmaDaUrl)) {
+          turmaFiltro.value = turmaDaUrl;
+        }
+        escutarPendentes();
+      });
     });
   }
 });

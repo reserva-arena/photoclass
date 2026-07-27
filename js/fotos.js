@@ -42,6 +42,7 @@ const resultsSubtitle = document.getElementById("results-subtitle");
 const resultsList = document.getElementById("results-list");
 const saveButton = document.getElementById("save-button");
 const saveSuccess = document.getElementById("save-success");
+const saveReviewLink = document.getElementById("save-review-link");
 
 const processingBanner = document.getElementById("processing-banner");
 const progressBarFill = document.getElementById("progress-bar-fill");
@@ -477,6 +478,7 @@ function renderizarResultados() {
 saveButton.addEventListener("click", async () => {
   saveButton.disabled = true;
   saveButton.textContent = "Conectando ao Drive...";
+  saveReviewLink.style.display = "none";
   iniciarProgresso();
   atualizarProgresso(3, "Conectando ao Google Drive...");
 
@@ -493,6 +495,7 @@ saveButton.addEventListener("click", async () => {
       (select) => select.value !== "__ignorar__" // ignora fotos descartadas
     );
     let salvos = 0;
+    let pendentesSalvos = 0;
 
     for (let indice = 0; indice < selects.length; indice++) {
       const select = selects[indice];
@@ -539,11 +542,19 @@ saveButton.addEventListener("click", async () => {
         criadoEm: serverTimestamp()
       });
       salvos++;
+      if (pendente) pendentesSalvos++;
     }
 
     atualizarProgresso(100, "Concluído!");
     saveSuccess.textContent = `${salvos} foto(s) salva(s) com sucesso no Google Drive!`;
     saveSuccess.hidden = false;
+
+    if (pendentesSalvos > 0) {
+      saveReviewLink.textContent = `👉 Ver ${pendentesSalvos} foto(s) pendente(s) na Revisão`;
+      saveReviewLink.href = `revisao.html?turma=${encodeURIComponent(turma)}`;
+      saveReviewLink.style.display = "block";
+    }
+
     resultsCard.hidden = true;
     fotosInput.value = "";
     atividadeInput.value = "";
