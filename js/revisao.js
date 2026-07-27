@@ -5,7 +5,7 @@
 // a nenhum aluno automaticamente aparecem aqui, pra professora
 // resolver manualmente sem precisar subir tudo de novo.
 
-import { auth, db } from "./firebase-config.js?v=20260727g";
+import { auth, db } from "./firebase-config.js?v=20260727h";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -19,9 +19,10 @@ import {
   getDocs,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727g";
-import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, copiarArquivo, excluirArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727g";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260727g";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727h";
+import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, copiarArquivo, excluirArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727h";
+import { aprenderComFoto } from "./aprendizado.js?v=20260727h";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260727h";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -281,6 +282,12 @@ function renderizarLista(docs, jaIdentificadosPorGrupo = new Map()) {
         // (um por rosto detectado na foto); usa mover pros primeiros e
         // copia pros excedentes
         const total = Math.max(marcados.length, docsGrupo.length);
+
+        // Sem ambiguidade só quando é 1 pra 1 - em fotos de grupo não dá
+        // pra saber com certeza qual pessoa é qual, então não ensina o
+        // sistema nesses casos
+        const semAmbiguidade = marcados.length === 1 && docsGrupo.length === 1;
+        if (semAmbiguidade) aprenderComFoto(marcados[0].id, item.foto);
 
         for (let i = 0; i < total; i++) {
           const aluno = marcados[i]; // pode faltar, se sobrou arquivo sem aluno

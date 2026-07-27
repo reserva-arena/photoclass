@@ -5,7 +5,7 @@
 // direto no navegador do professor - nenhuma foto sai
 // do dispositivo até o momento de salvar.
 
-import { auth, db } from "./firebase-config.js?v=20260727g";
+import { auth, db } from "./firebase-config.js?v=20260727h";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -15,13 +15,14 @@ import {
   addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727g";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727g";
-import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727g";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727h";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727h";
+import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727h";
+import { aprenderComFoto } from "./aprendizado.js?v=20260727h";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")
-const LIMIAR_ALTA_CONFIANCA = 0.58; // aceita automático quando similaridade >= 0.42 (distância = 1 - similaridade)
+const LIMIAR_ALTA_CONFIANCA = 0.55; // aceita automático quando similaridade >= 0.45 (distância = 1 - similaridade)
 function ehAltaConfianca(face) {
   return Boolean(face.alunoId) && face.distancia < LIMIAR_ALTA_CONFIANCA && !face.duplicadoNaFoto;
 }
@@ -136,7 +137,9 @@ turmaSelect.addEventListener("change", async () => {
   alunosDaTurma = [];
   snapshot.forEach((docSnap) => {
     const dado = docSnap.data();
-    const fotos = dado.fotos && dado.fotos.length > 0 ? dado.fotos : (dado.foto ? [dado.foto] : []);
+    const fotosCadastradas = dado.fotos && dado.fotos.length > 0 ? dado.fotos : (dado.foto ? [dado.foto] : []);
+    const fotosAprendidas = dado.fotosAprendidas || [];
+    const fotos = [...fotosCadastradas, ...fotosAprendidas];
     alunosDaTurma.push({ id: docSnap.id, nome: dado.nome, fotos });
   });
 
@@ -567,7 +570,15 @@ saveButton.addEventListener("click", async () => {
       if (fotosIgnoradas.has(indiceFoto)) return;
       const pendente = select.value === "";
       const aluno = pendente ? null : alunosDaTurma.find((a) => a.id === select.value);
-      itensParaEnviar.push({ indiceFoto, aluno, pendente });
+
+      // Só "aprende" quando foi uma CORREÇÃO manual de verdade (a
+      // professora trocou o palpite automático) - nunca de um automático
+      // aceito sem revisão, pra não reforçar um erro
+      const indiceFace = Number(select.getAttribute("data-face"));
+      const faceOriginal = resultadosProcessados[indiceFoto]?.faces[indiceFace];
+      const aprender = Boolean(aluno) && faceOriginal && faceOriginal.alunoId !== aluno.id;
+
+      itensParaEnviar.push({ indiceFoto, aluno, pendente, aprender });
     });
 
     resultadosProcessados.forEach((resultado, indiceFoto) => {
@@ -580,13 +591,18 @@ saveButton.addEventListener("click", async () => {
         ? [...checklist.querySelectorAll("input:checked")].map((input) => ({ id: input.value, nome: input.getAttribute("data-nome") }))
         : [];
 
+      // Sem ambiguidade só quando é 1 rosto pra 1 aluno marcado - em fotos
+      // de grupo não dá pra saber com certeza qual rosto é qual, então
+      // não ensina o sistema nesses casos
+      const semAmbiguidade = facesParaConferir.length === 1 && marcados.length === 1;
+
       // Casa cada rosto pendente com um aluno marcado; se sobrar aluno
       // marcado, cria envio extra; se sobrar rosto sem ninguém marcado,
       // vai como pendente pra Revisão (não perde a foto)
       const total = Math.max(facesParaConferir.length, marcados.length);
       for (let i = 0; i < total; i++) {
         const aluno = marcados[i] || null;
-        itensParaEnviar.push({ indiceFoto, aluno, pendente: !aluno });
+        itensParaEnviar.push({ indiceFoto, aluno, pendente: !aluno, aprender: semAmbiguidade && Boolean(aluno) });
       }
     });
 
@@ -595,7 +611,7 @@ saveButton.addEventListener("click", async () => {
     const gruposPorFoto = new Map(); // indiceFoto -> ID compartilhado entre todos os rostos dessa mesma imagem
 
     for (let indice = 0; indice < itensParaEnviar.length; indice++) {
-      const { indiceFoto, aluno, pendente } = itensParaEnviar[indice];
+      const { indiceFoto, aluno, pendente, aprender } = itensParaEnviar[indice];
       saveButton.textContent = `Enviando ${indice + 1}/${itensParaEnviar.length}...`;
       atualizarProgresso(
         Math.round(((indice + 0.5) / itensParaEnviar.length) * 100),
@@ -603,6 +619,10 @@ saveButton.addEventListener("click", async () => {
       );
 
       const resultado = resultadosProcessados[indiceFoto];
+
+      // Aprende com essa confirmação (só quando não teve ambiguidade
+      // nenhuma) - roda em paralelo, não atrasa o envio da foto
+      if (aprender) aprenderComFoto(aluno.id, resultado.fotoDataUrl);
 
       if (!gruposPorFoto.has(indiceFoto)) gruposPorFoto.set(indiceFoto, crypto.randomUUID());
       const grupoFotoId = gruposPorFoto.get(indiceFoto);
