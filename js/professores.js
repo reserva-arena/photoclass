@@ -25,7 +25,7 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, estaEmModoAdmin } from "./roles.js";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js";
 import { TURMAS, NOMES_SEGMENTO } from "./turmas.js";
 
 // Instância secundária do Firebase, só pra criar o login da professora
@@ -72,6 +72,7 @@ onAuthStateChanged(auth, (user) => {
 
   userEmailLabel.textContent = user.email;
   configurarAlternadorVisao(user.email);
+  configurarMenuMobile();
   configurarNavProfessores(user.email);
   preencherChecklistTurmas();
   carregarProfessores();

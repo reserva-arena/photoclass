@@ -19,7 +19,7 @@ import {
   getDocs,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, obterTurmasPermitidas } from "./roles.js";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js";
 import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, copiarArquivo, excluirArquivo, definirEmailUsuario } from "./drive-upload.js";
 import { DRIVE_CONFIG } from "./drive-config.js";
 
@@ -42,6 +42,7 @@ onAuthStateChanged(auth, (user) => {
     userEmailLabel.textContent = user.email;
     definirEmailUsuario(user.email);
     configurarAlternadorVisao(user.email);
+    configurarMenuMobile();
     configurarNavProfessores(user.email);
     obterTurmasPermitidas(user.email).then((turmas) => {
       turmasPermitidas = turmas;

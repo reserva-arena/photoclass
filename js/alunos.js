@@ -19,7 +19,7 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, obterTurmasPermitidas } from "./roles.js";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js";
 import { mostrarAlertaPendentes } from "./alerta-pendentes.js";
 import { TURMAS, NOMES_SEGMENTO } from "./turmas.js";
 
@@ -80,6 +80,7 @@ onAuthStateChanged(auth, (user) => {
     usuarioAtual = user;
     userEmailLabel.textContent = user.email;
     configurarAlternadorVisao(user.email);
+    configurarMenuMobile();
     configurarNavProfessores(user.email);
     obterTurmasPermitidas(user.email).then((turmas) => {
       turmasPermitidas = turmas;

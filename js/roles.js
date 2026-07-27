@@ -81,3 +81,25 @@ export function configurarNavProfessores(email) {
   if (!link) return;
   link.hidden = !estaEmModoAdmin(email);
 }
+
+// Liga o botão hambúrguer do menu mobile (abre/fecha a navegação
+// quando a tela é estreita demais pra mostrar os links direto)
+export function configurarMenuMobile() {
+  const botao = document.getElementById("mobile-menu-toggle");
+  const nav = document.querySelector(".app-header-nav");
+  if (!botao || !nav) return;
+
+  botao.addEventListener("click", () => nav.classList.toggle("aberto"));
+
+  // Fecha o menu ao clicar em qualquer link dele
+  nav.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => nav.classList.remove("aberto"));
+  });
+
+  // Fecha se clicar fora do menu
+  document.addEventListener("click", (evento) => {
+    if (!nav.contains(evento.target) && evento.target !== botao) {
+      nav.classList.remove("aberto");
+    }
+  });
+}

@@ -12,6 +12,7 @@
 <body>
 
   <header class="app-header">
+    <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-label="Abrir menu">☰</button>
     <div class="app-header-brand">
       <span class="brand-mark">PC</span>
       <span class="app-header-title">PhotoClass</span>
@@ -39,14 +40,22 @@
         <a href="alunos.html" class="stat-card">
           <span class="stat-number" id="stat-alunos">–</span>
           <span class="stat-label">aluno(s) cadastrado(s)</span>
+          <span class="stat-cta">+ Cadastrar mais um aluno</span>
         </a>
-        <div class="stat-card">
+        <a href="alunos.html" class="stat-card">
           <span class="stat-number" id="stat-turmas">–</span>
           <span class="stat-label">turma(s) ativa(s)</span>
-        </div>
+          <span class="stat-cta">+ Cadastrar aluno em outra turma</span>
+        </a>
         <a href="revisao.html" class="stat-card" id="stat-pendentes-card">
           <span class="stat-number" id="stat-pendentes">–</span>
           <span class="stat-label">foto(s) aguardando revisão</span>
+          <span class="stat-cta">Clique aqui para revisar →</span>
+        </a>
+        <a href="fotos.html" class="stat-card stat-card--acao">
+          <span class="stat-number">📸</span>
+          <span class="stat-label">Enviar fotos de uma atividade</span>
+          <span class="stat-cta">+ Enviar fotos</span>
         </a>
       </div>
 

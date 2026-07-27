@@ -16,7 +16,7 @@ import {
   where,
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, obterTurmasPermitidas } from "./roles.js";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js";
 import { mostrarAlertaPendentes } from "./alerta-pendentes.js";
 
 const userEmailLabel = document.getElementById("user-email");
@@ -36,6 +36,7 @@ onAuthStateChanged(auth, (user) => {
   } else {
     userEmailLabel.textContent = user.email;
     configurarAlternadorVisao(user.email);
+    configurarMenuMobile();
     configurarNavProfessores(user.email);
 
     const primeiroNome = user.email.split("@")[0].split(".")[0];
