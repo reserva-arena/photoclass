@@ -16,6 +16,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { configurarAlternadorVisao } from "./roles.js";
+import { garantirTokenAcesso, obterPastaDestino, enviarArquivo } from "./drive-upload.js";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação
@@ -27,6 +28,7 @@ const logoutButton = document.getElementById("logout-button");
 const turmaSelect = document.getElementById("turma-select");
 const uploadCard = document.getElementById("upload-card");
 const uploadSubtitle = document.getElementById("upload-subtitle");
+const atividadeInput = document.getElementById("atividade-input");
 const fotosInput = document.getElementById("fotos-input");
 const uploadError = document.getElementById("upload-error");
 const uploadInfo = document.getElementById("upload-info");
@@ -181,10 +183,36 @@ function redimensionar(img, maxDim = 480, qualidade = 0.7) {
   return canvas.toDataURL("image/jpeg", qualidade);
 }
 
+// Versão em qualidade maior da foto (não a miniatura), usada no
+// upload de verdade pro Drive - alvo de ~500KB, boa pra tela/celular
+function comprimirParaEnvio(img, maxDim = 1600, qualidade = 0.85) {
+  const canvas = document.createElement("canvas");
+  let { width, height } = img;
+  if (width > height && width > maxDim) {
+    height = Math.round(height * (maxDim / width));
+    width = maxDim;
+  } else if (height > maxDim) {
+    width = Math.round(width * (maxDim / height));
+    height = maxDim;
+  }
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", qualidade));
+}
+
 // ---------- Processar fotos ----------
 processButton.addEventListener("click", async () => {
   uploadError.hidden = true;
   uploadInfo.hidden = true;
+
+  if (!atividadeInput.value.trim()) {
+    uploadError.textContent = "Preencha o nome da atividade antes de continuar.";
+    uploadError.hidden = false;
+    atividadeInput.focus();
+    return;
+  }
+
   processButton.disabled = true;
   processButtonText.textContent = "Carregando reconhecimento facial...";
 
@@ -264,6 +292,7 @@ processButton.addEventListener("click", async () => {
       });
 
       resultadosProcessados.push({
+        arquivoOriginal: arquivo,
         fotoDataUrl: redimensionar(img),
         faces
       });
@@ -331,26 +360,58 @@ function renderizarResultados() {
 // ---------- Salvar fotos confirmadas ----------
 saveButton.addEventListener("click", async () => {
   saveButton.disabled = true;
-  saveButton.textContent = "Salvando...";
+  saveButton.textContent = "Conectando ao Drive...";
 
   try {
-    const selects = document.querySelectorAll(".face-select");
+    // Pede autorização à professora pra subir arquivos no Drive
+    // (aparece uma janela do Google só na primeira vez da sessão)
+    const accessToken = await garantirTokenAcesso();
+
+    const turma = turmaSelect.value;
+    const dataHoje = new Date().toISOString().slice(0, 10); // AAAA-MM-DD
+    const nomeAtividade = `${dataHoje} - ${atividadeInput.value.trim()}`;
+
+    const selects = [...document.querySelectorAll(".face-select")].filter(
+      (select) => select.value !== "__ignorar__" // ignora fotos descartadas
+    );
     let salvos = 0;
 
-    for (const select of selects) {
-      const valor = select.value;
-      if (valor === "__ignorar__") continue; // não salva nada, foto descartada
+    for (let indice = 0; indice < selects.length; indice++) {
+      const select = selects[indice];
+      saveButton.textContent = `Enviando ${indice + 1}/${selects.length}...`;
 
+      const valor = select.value;
       const indiceFoto = Number(select.getAttribute("data-foto"));
-      const fotoDataUrl = resultadosProcessados[indiceFoto].fotoDataUrl;
+      const resultado = resultadosProcessados[indiceFoto];
       const pendente = valor === "";
       const aluno = pendente ? null : alunosDaTurma.find((a) => a.id === valor);
+
+      // Gera a versão em qualidade maior (não a miniatura) a partir
+      // do arquivo original, pra subir no Drive
+      const dataUrlOriginal = await arquivoParaDataUrl(resultado.arquivoOriginal);
+      const imgOriginal = await carregarImagem(dataUrlOriginal);
+      const blobEnvio = await comprimirParaEnvio(imgOriginal);
+
+      // Acha (ou cria) a pasta certa: Turma > Aluno > Atividade, ou
+      // Turma > "Não identificados" > Atividade se ainda não sabemos quem é
+      const pastaDestinoId = await obterPastaDestino(
+        { turma, alunoNome: aluno ? aluno.nome : null, pendente, atividade: nomeAtividade },
+        accessToken
+      );
+
+      const nomeBase = (aluno ? aluno.nome : "nao-identificado").replace(/[\\/:*?"<>|]/g, "_");
+      const nomeArquivo = `${nomeBase}_${Date.now()}_${indice}.jpg`;
+      const arquivoDrive = await enviarArquivo(blobEnvio, nomeArquivo, pastaDestinoId, accessToken);
 
       await addDoc(collection(db, "fotos"), {
         alunoId: pendente ? null : aluno.id,
         alunoNome: pendente ? null : aluno.nome,
-        turma: turmaSelect.value,
-        foto: fotoDataUrl,
+        turma,
+        atividade: nomeAtividade,
+        foto: resultado.fotoDataUrl, // miniatura, só pra exibir dentro do app
+        driveFileId: arquivoDrive.id,
+        driveViewLink: arquivoDrive.webViewLink,
+        drivePastaId: pastaDestinoId,
         pendente,
         criadoPor: usuarioAtual.uid,
         criadoEm: serverTimestamp()
@@ -358,14 +419,15 @@ saveButton.addEventListener("click", async () => {
       salvos++;
     }
 
-    saveSuccess.textContent = `${salvos} foto(s) salva(s) com sucesso!`;
+    saveSuccess.textContent = `${salvos} foto(s) salva(s) com sucesso no Google Drive!`;
     saveSuccess.hidden = false;
     resultsCard.hidden = true;
     fotosInput.value = "";
+    atividadeInput.value = "";
     processButton.disabled = true;
   } catch (erro) {
     console.error(erro);
-    alert("Erro ao salvar as fotos. Tente novamente.");
+    alert("Erro ao salvar as fotos no Drive. Verifique sua conexão e tente novamente.");
   } finally {
     saveButton.disabled = false;
     saveButton.textContent = "Salvar fotos confirmadas";

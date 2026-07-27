@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -47,6 +48,11 @@
     <section class="card" id="upload-card" hidden>
       <h2>2. Enviar fotos</h2>
       <p class="card-subtitle" id="upload-subtitle">Selecione as fotos da atividade</p>
+
+      <div class="field">
+        <label for="atividade-input">Nome da atividade</label>
+        <input type="text" id="atividade-input" placeholder="Ex: Passeio ao Zoológico, Dia do Folclore...">
+      </div>
 
       <div class="field">
         <input type="file" id="fotos-input" accept="image/*" multiple>

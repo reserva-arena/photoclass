@@ -18,6 +18,8 @@ import {
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { configurarAlternadorVisao } from "./roles.js";
+import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, excluirArquivo } from "./drive-upload.js";
+import { DRIVE_CONFIG } from "./drive-config.js";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -27,6 +29,7 @@ const revisaoList = document.getElementById("revisao-list");
 
 let alunosPorTurma = {}; // { "9B": [{id, nome}, ...] }
 let pararDeEscutar = null;
+let itensPendentes = {}; // { docId: {turma, driveFileId, drivePastaId, ...} } - guardado pra poder mexer no Drive ao confirmar/descartar
 
 onAuthStateChanged(auth, (user) => {
   if (!user) {
@@ -94,9 +97,11 @@ function renderizarLista(snapshot) {
 
   revisaoSubtitle.textContent = `${snapshot.size} foto(s) aguardando identificação`;
   revisaoList.innerHTML = "";
+  itensPendentes = {};
 
   snapshot.forEach((docSnap) => {
     const item = docSnap.data();
+    itensPendentes[docSnap.id] = item;
     const alunosDaTurma = alunosPorTurma[item.turma] || [];
     const opcoesAlunos = alunosDaTurma.map((a) => `<option value="${a.id}">${a.nome}</option>`).join("");
 
@@ -105,7 +110,7 @@ function renderizarLista(snapshot) {
     card.innerHTML = `
       <img src="${item.foto}" alt="Foto pendente" class="result-photo">
       <div class="result-faces">
-        <span class="face-confidence">Turma: ${item.turma}</span>
+        <span class="face-confidence">Turma: ${item.turma}${item.atividade ? ` · ${item.atividade}` : ""}</span>
         <div class="result-face">
           <select class="face-select" data-id="${docSnap.id}">
             <option value="">Selecione o aluno...</option>
@@ -131,19 +136,53 @@ function renderizarLista(snapshot) {
         return;
       }
       const alunoNome = select.options[select.selectedIndex].textContent;
-      await updateDoc(doc(db, "fotos", id), {
-        alunoId,
-        alunoNome,
-        pendente: false
-      });
+      const textoOriginal = botao.textContent;
+
+      try {
+        const item = itensPendentes[id];
+
+        // Se a foto tiver um arquivo real no Drive, move pra pasta do aluno
+        if (item && item.driveFileId && item.drivePastaId) {
+          botao.disabled = true;
+          botao.textContent = "Movendo no Drive...";
+          const accessToken = await garantirTokenAcesso();
+          const pastaTurma = await obterOuCriarPasta(item.turma, DRIVE_CONFIG.pastaRaizId, accessToken);
+          const pastaAluno = await obterOuCriarPasta(alunoNome, pastaTurma, accessToken);
+          const pastaDestino = item.atividade
+            ? await obterOuCriarPasta(item.atividade, pastaAluno, accessToken)
+            : pastaAluno;
+          await moverArquivo(item.driveFileId, item.drivePastaId, pastaDestino, accessToken);
+        }
+
+        await updateDoc(doc(db, "fotos", id), {
+          alunoId,
+          alunoNome,
+          pendente: false
+        });
+      } catch (erro) {
+        console.error(erro);
+        alert("Erro ao mover a foto no Drive. Tente novamente.");
+        botao.disabled = false;
+        botao.textContent = textoOriginal;
+      }
     });
   });
 
   document.querySelectorAll(".descartar-btn").forEach((botao) => {
     botao.addEventListener("click", async () => {
       const id = botao.getAttribute("data-id");
-      if (confirm("Descartar esta foto? Essa ação não pode ser desfeita.")) {
+      if (!confirm("Descartar esta foto? Essa ação não pode ser desfeita.")) return;
+
+      try {
+        const item = itensPendentes[id];
+        if (item && item.driveFileId) {
+          const accessToken = await garantirTokenAcesso();
+          await excluirArquivo(item.driveFileId, accessToken);
+        }
         await deleteDoc(doc(db, "fotos", id));
+      } catch (erro) {
+        console.error(erro);
+        alert("Erro ao excluir a foto. Tente novamente.");
       }
     });
   });
