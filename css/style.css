@@ -971,6 +971,21 @@ select {
   padding: 0;
 }
 
+.foto-ignorar-opcao {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-red);
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.result-item--ignorada {
+  opacity: 0.45;
+}
+
 /* ---------- Tela de Professoras ---------- */
 
 .turmas-checklist {

@@ -5,7 +5,7 @@
 // direto no navegador do professor - nenhuma foto sai
 // do dispositivo até o momento de salvar.
 
-import { auth, db } from "./firebase-config.js?v=20260727f";
+import { auth, db } from "./firebase-config.js?v=20260727g";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -15,9 +15,9 @@ import {
   addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727f";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727f";
-import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727f";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727g";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727g";
+import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727g";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")
@@ -476,7 +476,13 @@ function renderizarResultados() {
 
     item.innerHTML = `
       <img src="${resultado.fotoDataUrl}" alt="Foto ${indiceFoto + 1}" class="result-photo result-photo--grande js-abrir-foto">
-      <div class="result-faces">${facesAutoHtml}${checklistHtml}</div>
+      <div class="result-faces">
+        <label class="foto-ignorar-opcao">
+          <input type="checkbox" class="foto-ignorar-checkbox" data-foto="${indiceFoto}">
+          🚫 Não salvar nenhuma foto desta imagem (não é da turma / não interessa)
+        </label>
+        ${facesAutoHtml}${checklistHtml}
+      </div>
     `;
     resultsList.appendChild(item);
 
@@ -515,6 +521,16 @@ function renderizarResultados() {
     });
   });
 
+  // Ao marcar "não salvar", desabilita visualmente o resto da foto
+  resultsList.querySelectorAll(".foto-ignorar-checkbox").forEach((checkbox) => {
+    checkbox.addEventListener("change", () => {
+      const item = checkbox.closest(".result-item");
+      item.classList.toggle("result-item--ignorada", checkbox.checked);
+      item.querySelectorAll("select, input[type=checkbox]:not(.foto-ignorar-checkbox), button.face-auto-corrigir")
+        .forEach((el) => { el.disabled = checkbox.checked; });
+    });
+  });
+
   saveButton.hidden = totalRostos === 0;
 }
 
@@ -535,6 +551,11 @@ saveButton.addEventListener("click", async () => {
     const dataHoje = new Date().toISOString().slice(0, 10); // AAAA-MM-DD
     const nomeAtividade = `${dataHoje} - ${atividadeInput.value.trim()}`;
 
+    // Fotos marcadas como "não salvar nenhuma foto desta imagem"
+    const fotosIgnoradas = new Set(
+      [...document.querySelectorAll(".foto-ignorar-checkbox:checked")].map((el) => Number(el.getAttribute("data-foto")))
+    );
+
     // Monta a lista de tudo que precisa ser enviado: os rostos com selo
     // automático (via select escondido) + os marcados manualmente na
     // checklist de cada foto
@@ -543,12 +564,14 @@ saveButton.addEventListener("click", async () => {
     document.querySelectorAll(".face-select").forEach((select) => {
       if (select.value === "__ignorar__") return;
       const indiceFoto = Number(select.getAttribute("data-foto"));
+      if (fotosIgnoradas.has(indiceFoto)) return;
       const pendente = select.value === "";
       const aluno = pendente ? null : alunosDaTurma.find((a) => a.id === select.value);
       itensParaEnviar.push({ indiceFoto, aluno, pendente });
     });
 
     resultadosProcessados.forEach((resultado, indiceFoto) => {
+      if (fotosIgnoradas.has(indiceFoto)) return;
       const facesParaConferir = resultado.faces.filter((face) => !ehAltaConfianca(face));
       if (facesParaConferir.length === 0) return;
 
