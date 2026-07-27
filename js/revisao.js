@@ -46,7 +46,7 @@ logoutButton.addEventListener("click", async () => {
 // ---------- Carrega turmas e alunos (para preencher os selects de correção) ----------
 async function carregarTurmasEAlunos() {
   const alunosRef = collection(db, "alunos");
-  const snapshot = await getDocs(query(alunosRef, where("segmento", "==", "anosIniciais")));
+  const snapshot = await getDocs(query(alunosRef));
 
   alunosPorTurma = {};
   snapshot.forEach((docSnap) => {

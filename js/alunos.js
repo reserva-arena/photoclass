@@ -20,6 +20,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { configurarAlternadorVisao, estaEmModoAdmin } from "./roles.js";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js";
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");
@@ -28,6 +29,23 @@ const logoutButton = document.getElementById("logout-button");
 const form = document.getElementById("student-form");
 const nomeInput = document.getElementById("nome");
 const turmaInput = document.getElementById("turma");
+
+// Preenche o select de turmas, agrupado por segmento
+function preencherTurmas() {
+  const segmentos = [...new Set(TURMAS.map((t) => t.segmento))];
+  segmentos.forEach((segmento) => {
+    const grupo = document.createElement("optgroup");
+    grupo.label = NOMES_SEGMENTO[segmento] || segmento;
+    TURMAS.filter((t) => t.segmento === segmento).forEach((turma) => {
+      const option = document.createElement("option");
+      option.value = turma.nome;
+      option.textContent = turma.nome;
+      grupo.appendChild(option);
+    });
+    turmaInput.appendChild(grupo);
+  });
+}
+preencherTurmas();
 const fotoInput = document.getElementById("foto");
 const photoPreview = document.getElementById("photo-preview-img");
 const photoPreviewPlaceholder = document.getElementById("photo-preview-placeholder");
@@ -134,7 +152,7 @@ form.addEventListener("submit", async (event) => {
       nome,
       turma,
       foto: fotoBase64,
-      segmento: "anosIniciais",
+      segmento: TURMAS.find((t) => t.nome === turma)?.segmento || "desconhecido",
       criadoPor: usuarioAtual.uid,
       criadoEm: serverTimestamp()
     });

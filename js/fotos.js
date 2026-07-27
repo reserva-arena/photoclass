@@ -64,7 +64,7 @@ logoutButton.addEventListener("click", async () => {
 // ---------- Carregar turmas disponíveis ----------
 async function carregarTurmas() {
   const alunosRef = collection(db, "alunos");
-  const consulta = query(alunosRef, where("segmento", "==", "anosIniciais"));
+  const consulta = query(alunosRef);
   const snapshot = await getDocs(consulta);
 
   const turmas = new Set();
@@ -90,7 +90,7 @@ turmaSelect.addEventListener("change", async () => {
   if (!turma) return;
 
   const alunosRef = collection(db, "alunos");
-  const consulta = query(alunosRef, where("segmento", "==", "anosIniciais"), where("turma", "==", turma));
+  const consulta = query(alunosRef, where("turma", "==", turma));
   const snapshot = await getDocs(consulta);
 
   alunosDaTurma = [];
