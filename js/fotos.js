@@ -29,6 +29,7 @@ const uploadCard = document.getElementById("upload-card");
 const uploadSubtitle = document.getElementById("upload-subtitle");
 const fotosInput = document.getElementById("fotos-input");
 const uploadError = document.getElementById("upload-error");
+const uploadInfo = document.getElementById("upload-info");
 const processButton = document.getElementById("process-button");
 const processButtonText = document.getElementById("process-button-text");
 
@@ -134,6 +135,35 @@ function arquivoParaDataUrl(arquivo) {
   });
 }
 
+// Gera uma "impressão digital" do conteúdo do arquivo, pra detectar duplicatas
+// mesmo quando o nome do arquivo é diferente
+async function hashArquivo(arquivo) {
+  const buffer = await arquivo.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// Remove arquivos com conteúdo idêntico, mantendo só a primeira ocorrência
+async function removerDuplicatas(arquivos) {
+  const vistos = new Set();
+  const unicos = [];
+  let duplicadas = 0;
+
+  for (const arquivo of arquivos) {
+    const hash = await hashArquivo(arquivo);
+    if (vistos.has(hash)) {
+      duplicadas++;
+      continue;
+    }
+    vistos.add(hash);
+    unicos.push(arquivo);
+  }
+
+  return { unicos, duplicadas };
+}
+
 // Reduz o tamanho da imagem antes de guardar (evita estourar o Firestore)
 function redimensionar(img, maxDim = 480, qualidade = 0.7) {
   const canvas = document.createElement("canvas");
@@ -154,6 +184,7 @@ function redimensionar(img, maxDim = 480, qualidade = 0.7) {
 // ---------- Processar fotos ----------
 processButton.addEventListener("click", async () => {
   uploadError.hidden = true;
+  uploadInfo.hidden = true;
   processButton.disabled = true;
   processButtonText.textContent = "Carregando reconhecimento facial...";
 
@@ -198,9 +229,19 @@ processButton.addEventListener("click", async () => {
     const comparador = new faceapi.FaceMatcher(descritoresConhecidos, LIMIAR_RECONHECIMENTO);
 
     // Processa cada foto enviada
-    processButtonText.textContent = "Reconhecendo rostos nas fotos...";
+    processButtonText.textContent = "Verificando fotos repetidas...";
     resultadosProcessados = [];
-    const arquivos = [...fotosInput.files];
+    const arquivosOriginais = [...fotosInput.files];
+    const { unicos: arquivos, duplicadas } = await removerDuplicatas(arquivosOriginais);
+
+    if (duplicadas > 0) {
+      uploadInfo.textContent = `${duplicadas} foto(s) repetida(s) encontrada(s) e ignorada(s). Processando ${arquivos.length} foto(s) única(s).`;
+      uploadInfo.hidden = false;
+    } else {
+      uploadInfo.hidden = true;
+    }
+
+    processButtonText.textContent = "Reconhecendo rostos nas fotos...";
 
     for (const arquivo of arquivos) {
       const dataUrl = await arquivoParaDataUrl(arquivo);
