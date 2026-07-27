@@ -9,7 +9,7 @@
 // à professora logada - a janela de consentimento do Google aparece
 // só na primeira vez (ou quando o token expira, ~1h).
 
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260727d";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260727e";
 
 const PASTA_MIME = "application/vnd.google-apps.folder";
 
@@ -248,6 +248,53 @@ export async function excluirArquivo(fileId, accessToken) {
   // 404 = arquivo já não existe mais, pode ignorar
   if (!resposta.ok && resposta.status !== 404) {
     throw new Error(`Erro ao excluir o arquivo no Drive: ${await mensagemDeErroGoogle(resposta)}`);
+  }
+}
+
+// ---------- Compartilhamento (link pros pais) ----------
+
+// Compartilha uma pasta como "Leitor" pra qualquer pessoa com o link -
+// dá pra ver e baixar, mas NÃO aparece nenhuma opção de excluir/mover/
+// editar (Leitor no Drive é sempre somente-leitura). Retorna a URL
+// pronta pra copiar e enviar.
+export async function compartilharPasta(pastaId, accessToken) {
+  const resposta = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${pastaId}/permissions?supportsAllDrives=true`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ role: "reader", type: "anyone" })
+    }
+  );
+  if (!resposta.ok) throw new Error(`Erro ao compartilhar a pasta: ${await mensagemDeErroGoogle(resposta)}`);
+  return `https://drive.google.com/drive/folders/${pastaId}`;
+}
+
+// Verifica se a pasta já está compartilhada por link (pra mostrar o
+// link certo sem precisar gerar de novo toda vez que abrir a tela)
+export async function verificarCompartilhamento(pastaId, accessToken) {
+  const resposta = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${pastaId}/permissions?supportsAllDrives=true&fields=permissions(id,type,role)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!resposta.ok) throw new Error(`Erro ao verificar compartilhamento: ${await mensagemDeErroGoogle(resposta)}`);
+  const dados = await resposta.json();
+  const permissaoPublica = (dados.permissions || []).find((p) => p.type === "anyone");
+  return permissaoPublica ? { id: permissaoPublica.id, link: `https://drive.google.com/drive/folders/${pastaId}` } : null;
+}
+
+// Remove o acesso público (o link para de funcionar pra quem não tem
+// acesso normal à pasta)
+export async function removerCompartilhamento(pastaId, permissaoId, accessToken) {
+  const resposta = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${pastaId}/permissions/${permissaoId}?supportsAllDrives=true`,
+    { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!resposta.ok && resposta.status !== 404) {
+    throw new Error(`Erro ao remover o compartilhamento: ${await mensagemDeErroGoogle(resposta)}`);
   }
 }
 

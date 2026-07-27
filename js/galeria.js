@@ -6,7 +6,7 @@
 // consultar o Google Drive ao vivo, então é rápido pra qualquer um
 // que tenha acesso ao app (não exige autorização do Drive).
 
-import { auth, db } from "./firebase-config.js?v=20260727d";
+import { auth, db } from "./firebase-config.js?v=20260727e";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -14,12 +14,21 @@ import {
   where,
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727d";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727e";
+import {
+  garantirTokenAcesso,
+  obterOuCriarPasta,
+  compartilharPasta,
+  verificarCompartilhamento,
+  removerCompartilhamento
+} from "./drive-upload.js?v=20260727e";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260727e";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
 const galeriaSubtitle = document.getElementById("galeria-subtitle");
 const galeriaBreadcrumb = document.getElementById("galeria-breadcrumb");
+const galeriaCompartilhar = document.getElementById("galeria-compartilhar");
 const galeriaTurmaField = document.getElementById("galeria-turma-field");
 const galeriaTurmaSelect = document.getElementById("galeria-turma-select");
 const galeriaVazio = document.getElementById("galeria-vazio");
@@ -137,6 +146,7 @@ function renderizarBreadcrumb() {
 // ---------- Nível 1: Alunos da turma ----------
 function renderizarAlunos() {
   galeriaBreadcrumb.hidden = true;
+  galeriaCompartilhar.hidden = true;
   galeriaVazio.hidden = true;
 
   if (fotosDaTurma.length === 0) {
@@ -177,6 +187,7 @@ function renderizarAlunos() {
 // ---------- Nível 2: Atividades do aluno ----------
 function renderizarAtividades() {
   renderizarBreadcrumb();
+  renderizarCompartilhar();
 
   const fotosDoAluno = fotosDaTurma.filter((f) => f.alunoId === alunoAtual.id);
   const porAtividade = new Map(); // atividade -> { fotos: [...], drivePastaId }
@@ -211,6 +222,7 @@ function renderizarAtividades() {
 // ---------- Nível 3: Fotos da atividade ----------
 function renderizarFotos() {
   renderizarBreadcrumb();
+  renderizarCompartilhar();
 
   const fotos = fotosDaTurma.filter((f) => f.alunoId === alunoAtual.id && (f.atividade || "Sem atividade") === atividadeAtual);
 
@@ -231,6 +243,69 @@ function renderizarFotos() {
       ${foto.driveViewLink ? `<a href="${foto.driveViewLink}" target="_blank" rel="noopener" class="galeria-foto-drive-link">Abrir no Drive</a>` : ""}
     `;
     grid.appendChild(wrapper);
+  });
+}
+
+// ---------- Compartilhar pasta do aluno com os pais ----------
+function renderizarCompartilhar() {
+  galeriaCompartilhar.hidden = false;
+  galeriaCompartilhar.innerHTML = `
+    <button id="galeria-compartilhar-btn" class="btn-ghost">🔗 Gerar/ver link para os pais (ver e baixar as fotos deste aluno)</button>
+    <div id="galeria-compartilhar-resultado"></div>
+  `;
+
+  document.getElementById("galeria-compartilhar-btn").addEventListener("click", async (evento) => {
+    const botao = evento.target;
+    const resultado = document.getElementById("galeria-compartilhar-resultado");
+    botao.disabled = true;
+    botao.textContent = "Verificando...";
+
+    try {
+      const accessToken = await garantirTokenAcesso();
+      const pastaTurma = await obterOuCriarPasta(turmaAtual, DRIVE_CONFIG.pastaRaizId, accessToken);
+      const pastaAluno = await obterOuCriarPasta(alunoAtual.nome, pastaTurma, accessToken);
+
+      let compartilhamento = await verificarCompartilhamento(pastaAluno, accessToken);
+      if (!compartilhamento) {
+        botao.textContent = "Gerando link...";
+        const link = await compartilharPasta(pastaAluno, accessToken);
+        compartilhamento = { link, id: null };
+        // busca de novo pra pegar o id da permissão (necessário caso queira remover depois)
+        compartilhamento = (await verificarCompartilhamento(pastaAluno, accessToken)) || compartilhamento;
+      }
+
+      resultado.innerHTML = `
+        <p class="card-subtitle" style="margin: 8px 0 4px;">Qualquer pessoa com esse link consegue ver e baixar as fotos de ${alunoAtual.nome} (sem poder apagar nada):</p>
+        <div class="galeria-compartilhar-link">
+          <input type="text" readonly value="${compartilhamento.link}" onclick="this.select()">
+          <button class="btn-ghost" id="galeria-copiar-link">Copiar link</button>
+          <button class="btn-ghost" id="galeria-remover-link">Remover acesso</button>
+        </div>
+      `;
+
+      document.getElementById("galeria-copiar-link").addEventListener("click", async () => {
+        await navigator.clipboard.writeText(compartilhamento.link);
+        const btnCopiar = document.getElementById("galeria-copiar-link");
+        btnCopiar.textContent = "Copiado ✓";
+        setTimeout(() => { btnCopiar.textContent = "Copiar link"; }, 2000);
+      });
+
+      document.getElementById("galeria-remover-link").addEventListener("click", async () => {
+        if (!confirm("Remover o acesso? O link para de funcionar pros pais.")) return;
+        if (compartilhamento.id) {
+          await removerCompartilhamento(pastaAluno, compartilhamento.id, accessToken);
+        }
+        renderizarCompartilhar();
+      });
+
+      botao.textContent = "🔗 Gerar/ver link para os pais (ver e baixar as fotos deste aluno)";
+      botao.disabled = false;
+    } catch (erro) {
+      console.error(erro);
+      alert(`Erro ao gerar o link:\n\n${erro.message || erro}`);
+      botao.disabled = false;
+      botao.textContent = "🔗 Gerar/ver link para os pais (ver e baixar as fotos deste aluno)";
+    }
   });
 }
 
