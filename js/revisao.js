@@ -28,6 +28,7 @@ const logoutButton = document.getElementById("logout-button");
 const turmaFiltro = document.getElementById("turma-filtro");
 const revisaoSubtitle = document.getElementById("revisao-subtitle");
 const revisaoList = document.getElementById("revisao-list");
+const descartarTodasButton = document.getElementById("descartar-todas-button");
 
 let alunosPorTurma = {}; // { "9B": [{id, nome}, ...] }
 let pararDeEscutar = null;
@@ -92,6 +93,35 @@ async function carregarTurmasEAlunos() {
 
 turmaFiltro.addEventListener("change", () => escutarPendentes());
 
+descartarTodasButton.addEventListener("click", async () => {
+  const total = itensPendentes.size;
+  if (total === 0) return;
+  if (!confirm(`Descartar TODAS as ${total} foto(s) pendente(s) desta lista? Essa ação não pode ser desfeita.`)) return;
+
+  descartarTodasButton.disabled = true;
+  const gruposArray = [...itensPendentes.entries()];
+  const precisaDrive = gruposArray.some(([, { docs: docsGrupo }]) => docsGrupo.some((d) => d.driveFileId));
+  const accessToken = precisaDrive ? await garantirTokenAcesso() : null;
+
+  for (let i = 0; i < gruposArray.length; i++) {
+    const [, { docs: docsGrupo }] = gruposArray[i];
+    descartarTodasButton.textContent = `Descartando (${i + 1}/${gruposArray.length})...`;
+    try {
+      for (const docOrigem of docsGrupo) {
+        if (docOrigem.driveFileId && accessToken) {
+          await excluirArquivo(docOrigem.driveFileId, accessToken);
+        }
+        await deleteDoc(doc(db, "fotos", docOrigem.id));
+      }
+    } catch (erro) {
+      console.error(erro);
+      alert(`Erro ao descartar uma das fotos:\n\n${erro.message || erro}\n\nAs demais continuam sendo processadas.`);
+    }
+  }
+
+  descartarTodasButton.disabled = false;
+});
+
 // ---------- Escuta em tempo real as fotos pendentes ----------
 function escutarPendentes() {
   if (pararDeEscutar) pararDeEscutar();
@@ -127,6 +157,8 @@ function renderizarLista(docs) {
   if (docs.length === 0) {
     revisaoSubtitle.textContent = "Nenhuma foto pendente 🎉";
     revisaoList.innerHTML = `<p class="empty-state">Tudo revisado por aqui!</p>`;
+    descartarTodasButton.hidden = true;
+    itensPendentes = new Map();
     return;
   }
 
@@ -144,6 +176,8 @@ function renderizarLista(docs) {
   revisaoSubtitle.textContent = `${docs.length} foto(s) aguardando identificação${grupos.size !== docs.length ? ` (${grupos.size} imagem(ns))` : ""}`;
   revisaoList.innerHTML = "";
   itensPendentes = grupos;
+  descartarTodasButton.hidden = false;
+  descartarTodasButton.textContent = `Descartar todas as fotos desta lista (${grupos.size})`;
 
   [...grupos.entries()].forEach(([grupoId, { item, docs: docsGrupo }]) => {
     const alunosDaTurma = alunosPorTurma[item.turma] || [];
