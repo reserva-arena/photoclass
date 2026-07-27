@@ -43,6 +43,10 @@ const resultsList = document.getElementById("results-list");
 const saveButton = document.getElementById("save-button");
 const saveSuccess = document.getElementById("save-success");
 
+const processingBanner = document.getElementById("processing-banner");
+const progressBarFill = document.getElementById("progress-bar-fill");
+const progressText = document.getElementById("progress-text");
+
 let usuarioAtual = null;
 let turmasPermitidas = null; // null = admin (todas); [] = nenhuma turma liberada ainda
 let alunosDaTurma = []; // [{id, nome, foto}]
@@ -144,6 +148,31 @@ async function carregarModelos() {
   modelosCarregados = true;
 }
 
+// ---------- Barra de progresso + aviso de não fechar a aba ----------
+let emProcessamento = false;
+
+window.addEventListener("beforeunload", (evento) => {
+  if (!emProcessamento) return;
+  evento.preventDefault();
+  evento.returnValue = ""; // necessário pro navegador mostrar o aviso nativo
+});
+
+function iniciarProgresso() {
+  emProcessamento = true;
+  processingBanner.hidden = false;
+  atualizarProgresso(0, "Preparando...");
+}
+
+function atualizarProgresso(percentual, mensagem) {
+  progressBarFill.style.width = `${Math.min(100, Math.max(0, percentual))}%`;
+  progressText.textContent = mensagem;
+}
+
+function finalizarProgresso() {
+  emProcessamento = false;
+  processingBanner.hidden = true;
+}
+
 // ---------- Utilitários de imagem ----------
 function carregarImagem(src) {
   return new Promise((resolve, reject) => {
@@ -242,6 +271,8 @@ processButton.addEventListener("click", async () => {
 
   processButton.disabled = true;
   processButtonText.textContent = "Carregando reconhecimento facial...";
+  iniciarProgresso();
+  atualizarProgresso(2, "Carregando modelo de reconhecimento facial...");
 
   try {
     await carregarModelos();
@@ -250,6 +281,7 @@ processButton.addEventListener("click", async () => {
     // usando TODAS as fotos de referência cadastradas pra ele - melhora
     // a precisão em ângulos/expressões diferentes)
     processButtonText.textContent = "Analisando alunos da turma...";
+    atualizarProgresso(10, "Analisando fotos de referência da turma...");
     const descritoresConhecidos = [];
     const alunosSemRostoDetectado = [];
     for (const aluno of alunosDaTurma) {
@@ -305,8 +337,10 @@ processButton.addEventListener("click", async () => {
     }
 
     processButtonText.textContent = "Reconhecendo rostos nas fotos...";
+    atualizarProgresso(25, `Reconhecendo rostos... (0/${arquivos.length})`);
 
-    for (const arquivo of arquivos) {
+    for (let i = 0; i < arquivos.length; i++) {
+      const arquivo = arquivos[i];
       const dataUrl = await arquivoParaDataUrl(arquivo);
       const img = await carregarImagem(dataUrl);
 
@@ -331,8 +365,13 @@ processButton.addEventListener("click", async () => {
         fotoDataUrl: redimensionar(img),
         faces
       });
+
+      // 25% a 95% da barra é reservado pro reconhecimento das fotos
+      const percentual = 25 + Math.round(((i + 1) / arquivos.length) * 70);
+      atualizarProgresso(percentual, `Reconhecendo rostos... (${i + 1}/${arquivos.length})`);
     }
 
+    atualizarProgresso(100, "Concluído!");
     renderizarResultados();
   } catch (erro) {
     console.error(erro);
@@ -341,6 +380,7 @@ processButton.addEventListener("click", async () => {
   } finally {
     processButton.disabled = false;
     processButtonText.textContent = "Reconhecer rostos";
+    finalizarProgresso();
   }
 });
 
@@ -437,6 +477,8 @@ function renderizarResultados() {
 saveButton.addEventListener("click", async () => {
   saveButton.disabled = true;
   saveButton.textContent = "Conectando ao Drive...";
+  iniciarProgresso();
+  atualizarProgresso(3, "Conectando ao Google Drive...");
 
   try {
     // Pede autorização à professora pra subir arquivos no Drive
@@ -455,6 +497,10 @@ saveButton.addEventListener("click", async () => {
     for (let indice = 0; indice < selects.length; indice++) {
       const select = selects[indice];
       saveButton.textContent = `Enviando ${indice + 1}/${selects.length}...`;
+      atualizarProgresso(
+        Math.round(((indice + 0.5) / selects.length) * 100),
+        `Enviando foto ${indice + 1} de ${selects.length} pro Drive...`
+      );
 
       const valor = select.value;
       const indiceFoto = Number(select.getAttribute("data-foto"));
@@ -495,6 +541,7 @@ saveButton.addEventListener("click", async () => {
       salvos++;
     }
 
+    atualizarProgresso(100, "Concluído!");
     saveSuccess.textContent = `${salvos} foto(s) salva(s) com sucesso no Google Drive!`;
     saveSuccess.hidden = false;
     resultsCard.hidden = true;
@@ -507,5 +554,6 @@ saveButton.addEventListener("click", async () => {
   } finally {
     saveButton.disabled = false;
     saveButton.textContent = "Salvar fotos confirmadas";
+    finalizarProgresso();
   }
 });
