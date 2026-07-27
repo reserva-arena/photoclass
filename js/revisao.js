@@ -5,7 +5,7 @@
 // a nenhum aluno automaticamente aparecem aqui, pra professora
 // resolver manualmente sem precisar subir tudo de novo.
 
-import { auth, db } from "./firebase-config.js?v=20260727m";
+import { auth, db } from "./firebase-config.js?v=20260727n";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -19,10 +19,10 @@ import {
   getDocs,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727m";
-import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, copiarArquivo, excluirArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727m";
-import { aprenderComFoto } from "./aprendizado.js?v=20260727m";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260727m";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727n";
+import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, copiarArquivo, excluirArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727n";
+import { aprenderComFoto } from "./aprendizado.js?v=20260727n";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260727n";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -232,7 +232,7 @@ function renderizarLista(docs, jaIdentificadosPorGrupo = new Map()) {
 
     const semNinguemPraMarcar = opcoesAlunos === "";
     const checklistOuAviso = semNinguemPraMarcar
-      ? `<p class="card-subtitle">${docsGrupo.length > 1 ? `Sobraram ${docsGrupo.length} rostos sem reconhecimento` : "Sobrou um rosto sem reconhecimento"} nessa foto. Se não for aluno, pode descartar sem risco - as já identificadas continuam intactas.</p>`
+      ? `<p class="card-subtitle">${docsGrupo.length > 1 ? `${docsGrupo.length} rostos dessa foto não foram reconhecidos` : "Um rosto dessa foto não foi reconhecido"}. Se não for de aluno, pode descartar sem risco - as demais identificações não são afetadas.</p>`
       : opcoesAlunos;
 
     const card = document.createElement("div");
