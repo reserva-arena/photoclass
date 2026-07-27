@@ -408,6 +408,24 @@ input[type="file"] {
   justify-content: center;
 }
 
+.student-edit {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  color: var(--color-navy-light);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .empty-state {
   font-size: 13px;
   color: var(--color-navy-light);

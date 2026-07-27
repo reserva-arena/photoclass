@@ -12,6 +12,7 @@ import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/
 import {
   collection,
   addDoc,
+  updateDoc,
   deleteDoc,
   doc,
   query,
@@ -26,9 +27,12 @@ import { TURMAS, NOMES_SEGMENTO } from "./turmas.js";
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
 
+const formTitle = document.getElementById("form-title");
 const form = document.getElementById("student-form");
 const nomeInput = document.getElementById("nome");
 const turmaInput = document.getElementById("turma");
+const cancelEditButton = document.getElementById("cancel-edit-button");
+const fotoHint = document.getElementById("foto-hint");
 
 // Preenche o select de turmas, agrupado por segmento
 function preencherTurmas() {
@@ -58,6 +62,9 @@ const studentsList = document.getElementById("students-list");
 const studentsCount = document.getElementById("students-count");
 
 let usuarioAtual = null;
+let alunoEmEdicaoId = null; // null = modo cadastro; senão, id do aluno sendo editado
+let fotoBase64EmEdicao = null; // guarda a foto atual do aluno, caso não troque por uma nova
+const alunosCache = new Map(); // id -> dados do aluno, pra reaproveitar ao entrar em edição
 
 // ---------- Proteção da página ----------
 onAuthStateChanged(auth, (user) => {
@@ -110,8 +117,53 @@ function esconderMensagens() {
 
 function definirCarregando(carregando) {
   submitButton.disabled = carregando;
-  submitButtonText.textContent = carregando ? "Cadastrando..." : "Cadastrar aluno";
+  submitButtonText.textContent = carregando
+    ? (alunoEmEdicaoId ? "Salvando..." : "Cadastrando...")
+    : (alunoEmEdicaoId ? "Salvar alterações" : "Cadastrar aluno");
 }
+
+// ---------- Modo edição ----------
+function entrarModoEdicao(id) {
+  const aluno = alunosCache.get(id);
+  if (!aluno) return;
+
+  alunoEmEdicaoId = id;
+  fotoBase64EmEdicao = aluno.foto;
+
+  nomeInput.value = aluno.nome;
+  turmaInput.value = aluno.turma;
+  fotoInput.value = "";
+  fotoInput.required = false;
+  photoPreview.src = aluno.foto;
+  photoPreview.hidden = false;
+  photoPreviewPlaceholder.hidden = true;
+
+  formTitle.textContent = `Editando: ${aluno.nome}`;
+  submitButtonText.textContent = "Salvar alterações";
+  cancelEditButton.hidden = false;
+  fotoHint.hidden = false;
+  esconderMensagens();
+
+  form.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function sairModoEdicao() {
+  alunoEmEdicaoId = null;
+  fotoBase64EmEdicao = null;
+
+  form.reset();
+  fotoInput.required = true;
+  photoPreview.hidden = true;
+  photoPreviewPlaceholder.hidden = false;
+
+  formTitle.textContent = "Cadastrar aluno";
+  submitButtonText.textContent = "Cadastrar aluno";
+  cancelEditButton.hidden = true;
+  fotoHint.hidden = true;
+  esconderMensagens();
+}
+
+cancelEditButton.addEventListener("click", sairModoEdicao);
 
 // Converte o arquivo de imagem para base64 (texto), pra salvar no Firestore
 function arquivoParaBase64(arquivo) {
@@ -123,7 +175,7 @@ function arquivoParaBase64(arquivo) {
   });
 }
 
-// ---------- Cadastro de aluno ----------
+// ---------- Cadastro / Edição de aluno ----------
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   esconderMensagens();
@@ -131,14 +183,15 @@ form.addEventListener("submit", async (event) => {
   const nome = nomeInput.value.trim();
   const turma = turmaInput.value.trim();
   const arquivo = fotoInput.files[0];
+  const editando = Boolean(alunoEmEdicaoId);
 
-  if (!nome || !turma || !arquivo) {
+  if (!nome || !turma || (!editando && !arquivo)) {
     mostrarErro("Preencha nome, turma e selecione uma foto.");
     return;
   }
 
   // Limite de tamanho pra não estourar o documento do Firestore (máx. 1MB por documento)
-  if (arquivo.size > 700 * 1024) {
+  if (arquivo && arquivo.size > 700 * 1024) {
     mostrarErro("A foto está muito grande. Escolha uma imagem menor (até 700KB).");
     return;
   }
@@ -146,27 +199,37 @@ form.addEventListener("submit", async (event) => {
   definirCarregando(true);
 
   try {
-    const fotoBase64 = await arquivoParaBase64(arquivo);
+    // Se trocou a foto, usa a nova; senão (só em edição), mantém a atual
+    const fotoBase64 = arquivo ? await arquivoParaBase64(arquivo) : fotoBase64EmEdicao;
 
-    await addDoc(collection(db, "alunos"), {
+    const dados = {
       nome,
       turma,
       foto: fotoBase64,
-      segmento: TURMAS.find((t) => t.nome === turma)?.segmento || "desconhecido",
-      criadoPor: usuarioAtual.uid,
-      criadoEm: serverTimestamp()
-    });
+      segmento: TURMAS.find((t) => t.nome === turma)?.segmento || "desconhecido"
+    };
 
-    mostrarSucesso(`${nome} cadastrado(a) com sucesso!`);
-    form.reset();
-    photoPreview.hidden = true;
-    photoPreviewPlaceholder.hidden = false;
+    if (editando) {
+      await updateDoc(doc(db, "alunos", alunoEmEdicaoId), dados);
+      mostrarSucesso(`${nome} atualizado(a) com sucesso!`);
+      sairModoEdicao();
+    } else {
+      await addDoc(collection(db, "alunos"), {
+        ...dados,
+        criadoPor: usuarioAtual.uid,
+        criadoEm: serverTimestamp()
+      });
+      mostrarSucesso(`${nome} cadastrado(a) com sucesso!`);
+      form.reset();
+      photoPreview.hidden = true;
+      photoPreviewPlaceholder.hidden = false;
+    }
   } catch (erro) {
     console.error(erro);
     if (erro.code === "permission-denied") {
       mostrarErro("Sem permissão para salvar. Verifique as regras do Firestore.");
     } else {
-      mostrarErro("Não foi possível cadastrar. Tente novamente.");
+      mostrarErro("Não foi possível salvar. Tente novamente.");
     }
   } finally {
     definirCarregando(false);
@@ -188,12 +251,16 @@ function carregarAlunos() {
     studentsCount.textContent = `${snapshot.size} aluno${snapshot.size > 1 ? "s" : ""} cadastrado${snapshot.size > 1 ? "s" : ""}`;
 
     studentsList.innerHTML = "";
+    alunosCache.clear();
     snapshot.forEach((docSnap) => {
       const aluno = docSnap.data();
+      alunosCache.set(docSnap.id, aluno);
+
       const card = document.createElement("div");
       card.className = "student-card";
       const podeExcluir = estaEmModoAdmin(usuarioAtual.email);
       card.innerHTML = `
+        <button class="student-edit" title="Editar aluno" data-id="${docSnap.id}">✎</button>
         <img src="${aluno.foto}" alt="Foto de ${aluno.nome}" class="student-photo">
         <div class="student-info">
           <p class="student-name">${aluno.nome}</p>
@@ -204,11 +271,19 @@ function carregarAlunos() {
       studentsList.appendChild(card);
     });
 
+    // Liga os botões de editar
+    document.querySelectorAll(".student-edit").forEach((botao) => {
+      botao.addEventListener("click", () => {
+        entrarModoEdicao(botao.getAttribute("data-id"));
+      });
+    });
+
     // Liga os botões de exclusão
     document.querySelectorAll(".student-delete").forEach((botao) => {
       botao.addEventListener("click", async () => {
         const id = botao.getAttribute("data-id");
         if (confirm("Remover este aluno?")) {
+          if (alunoEmEdicaoId === id) sairModoEdicao();
           await deleteDoc(doc(db, "alunos", id));
         }
       });

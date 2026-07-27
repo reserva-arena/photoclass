@@ -32,7 +32,7 @@
   <main class="app-main">
 
     <section class="card">
-      <h2>Cadastrar aluno</h2>
+      <h2 id="form-title">Cadastrar aluno</h2>
       <p class="card-subtitle">Educação Infantil</p>
 
       <form id="student-form" novalidate>
@@ -57,14 +57,18 @@
             </div>
             <input type="file" id="foto" name="foto" accept="image/*" required>
           </div>
+          <p id="foto-hint" class="card-subtitle" hidden style="margin-top: 6px;">Deixe em branco pra manter a foto atual</p>
         </div>
 
         <p id="form-error" class="error-message" role="alert" hidden></p>
         <p id="form-success" class="success-message" role="status" hidden></p>
 
-        <button type="submit" id="submit-button" class="btn-primary">
-          <span id="submit-button-text">Cadastrar aluno</span>
-        </button>
+        <div style="display: flex; gap: 10px;">
+          <button type="submit" id="submit-button" class="btn-primary">
+            <span id="submit-button-text">Cadastrar aluno</span>
+          </button>
+          <button type="button" id="cancel-edit-button" class="btn-ghost" hidden>Cancelar edição</button>
+        </div>
       </form>
     </section>
 
