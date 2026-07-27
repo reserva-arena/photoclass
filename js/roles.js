@@ -74,9 +74,10 @@ export async function obterTurmasPermitidas(email) {
   }
 }
 
-// Mostra o link "Professores" no menu só pra conta admin
+// Mostra o link "Professores" no menu só quando está de fato no
+// modo Admin (some se a conta admin estiver com "Ver como Professor" ativo)
 export function configurarNavProfessores(email) {
   const link = document.getElementById("nav-professores");
   if (!link) return;
-  link.hidden = !isAdminEmail(email);
+  link.hidden = !estaEmModoAdmin(email);
 }

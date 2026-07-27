@@ -25,7 +25,7 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, isAdminEmail } from "./roles.js";
+import { configurarAlternadorVisao, configurarNavProfessores, estaEmModoAdmin } from "./roles.js";
 import { TURMAS, NOMES_SEGMENTO } from "./turmas.js";
 
 // Instância secundária do Firebase, só pra criar o login da professora
@@ -65,7 +65,7 @@ onAuthStateChanged(auth, (user) => {
     window.location.href = "index.html";
     return;
   }
-  if (!isAdminEmail(user.email)) {
+  if (!estaEmModoAdmin(user.email)) {
     window.location.href = "dashboard.html";
     return;
   }
