@@ -6,26 +6,28 @@
 // consultar o Google Drive ao vivo, então é rápido pra qualquer um
 // que tenha acesso ao app (não exige autorização do Drive).
 
-import { auth, db } from "./firebase-config.js?v=20260728e";
+import { auth, db } from "./firebase-config.js?v=20260728f";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
   query,
   where,
+  orderBy,
+  limit,
   getDocs,
   doc,
   getDoc,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728e";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728f";
 import {
   garantirTokenAcesso,
   obterOuCriarPasta,
   compartilharComEmail,
   listarAcessosPorEmail,
   removerCompartilhamento
-} from "./drive-upload.js?v=20260728e";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260728e";
+} from "./drive-upload.js?v=20260728f";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260728f";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -40,6 +42,7 @@ const galeriaGrid = document.getElementById("galeria-grid");
 let turmasPermitidas = null;
 let alunosDaTurma = []; // [{id, nome, foto}] - leve, vem do cadastro, não das fotos
 let fotosDoAlunoAtual = []; // só as fotos do aluno que está aberto agora
+let fotosLimitadasDoAlunoAtual = false; // true = pode ter fotos mais antigas que nem foram buscadas ainda
 let turmaAtual = null;
 let alunoAtual = null; // { id, nome }
 let atividadeAtual = null; // string
@@ -197,6 +200,8 @@ function renderizarAlunos() {
 
 // Busca as fotos só desse aluno específico (rápido mesmo que a turma
 // já tenha acumulado muitas fotos ao longo do ano)
+const LIMITE_FOTOS_POR_ALUNO = 60; // mais que suficiente pra "2 atividades recentes" - garante velocidade
+
 async function abrirAluno(aluno) {
   alunoAtual = aluno;
   atividadeAtual = null;
@@ -206,15 +211,39 @@ async function abrirAluno(aluno) {
   galeriaGrid.innerHTML = `<p class="empty-state">Carregando fotos de ${aluno.nome}...</p>`;
 
   try {
-    const snapshot = await getDocs(
-      query(collection(db, "fotos"), where("turma", "==", turmaAtual), where("alunoId", "==", aluno.id))
-    );
+    const fotosRef = collection(db, "fotos");
+    let snapshot;
+    let limitado = false;
+
+    try {
+      // Tentativa otimizada: só as fotos mais recentes (precisa de um
+      // índice no Firestore - se ainda não existir, cai no plano B abaixo)
+      snapshot = await getDocs(
+        query(
+          fotosRef,
+          where("turma", "==", turmaAtual),
+          where("alunoId", "==", aluno.id),
+          orderBy("criadoEm", "desc"),
+          limit(LIMITE_FOTOS_POR_ALUNO)
+        )
+      );
+      limitado = snapshot.size >= LIMITE_FOTOS_POR_ALUNO;
+    } catch (erroIndice) {
+      // Índice ainda não criado no Firestore - busca tudo mesmo (mais lento,
+      // mas funciona). O link pra criar o índice (e resolver de vez) aparece
+      // no console do navegador.
+      console.warn("Consulta otimizada indisponível (falta criar um índice no Firestore) - usando busca completa. Link pra criar o índice:", erroIndice.message);
+      snapshot = await getDocs(query(fotosRef, where("turma", "==", turmaAtual), where("alunoId", "==", aluno.id)));
+    }
+
     fotosDoAlunoAtual = [];
     snapshot.forEach((docSnap) => {
       const dados = docSnap.data();
       if (dados.pendente) return; // só fotos já identificadas
       fotosDoAlunoAtual.push({ id: docSnap.id, ...dados });
     });
+
+    fotosLimitadasDoAlunoAtual = limitado;
     renderizarAtividades();
   } catch (erro) {
     console.error(erro);
@@ -278,6 +307,12 @@ function renderizarAtividades() {
       renderizarAtividades();
     });
     galeriaGrid.appendChild(botaoMais);
+  } else if (fotosLimitadasDoAlunoAtual) {
+    const aviso = document.createElement("p");
+    aviso.className = "card-subtitle";
+    aviso.style.marginTop = "12px";
+    aviso.textContent = `Mostrando só as ${LIMITE_FOTOS_POR_ALUNO} fotos mais recentes desse aluno. Fotos bem mais antigas podem não aparecer aqui (mas continuam salvas no Drive).`;
+    galeriaGrid.appendChild(aviso);
   }
 }
 
