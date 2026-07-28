@@ -5,7 +5,7 @@
 // melhorar a precisão do reconhecimento em ângulos/expressões
 // diferentes. Comprimidas no navegador antes de salvar.
 
-import { auth, db } from "./firebase-config.js?v=20260727t";
+import { auth, db } from "./firebase-config.js?v=20260727u";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -19,9 +19,9 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727t";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727t";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260727t";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727u";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727u";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260727u";
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");
