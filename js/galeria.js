@@ -6,7 +6,7 @@
 // consultar o Google Drive ao vivo, então é rápido pra qualquer um
 // que tenha acesso ao app (não exige autorização do Drive).
 
-import { auth, db } from "./firebase-config.js?v=20260728d";
+import { auth, db } from "./firebase-config.js?v=20260728e";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -17,15 +17,15 @@ import {
   getDoc,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728d";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728e";
 import {
   garantirTokenAcesso,
   obterOuCriarPasta,
   compartilharComEmail,
   listarAcessosPorEmail,
   removerCompartilhamento
-} from "./drive-upload.js?v=20260728d";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260728d";
+} from "./drive-upload.js?v=20260728e";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260728e";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -38,10 +38,12 @@ const galeriaVazio = document.getElementById("galeria-vazio");
 const galeriaGrid = document.getElementById("galeria-grid");
 
 let turmasPermitidas = null;
-let fotosDaTurma = []; // fotos confirmadas (pendente:false) da turma selecionada
+let alunosDaTurma = []; // [{id, nome, foto}] - leve, vem do cadastro, não das fotos
+let fotosDoAlunoAtual = []; // só as fotos do aluno que está aberto agora
 let turmaAtual = null;
 let alunoAtual = null; // { id, nome }
 let atividadeAtual = null; // string
+let mostrarTodasAsAtividades = false; // false = só as 2 mais recentes
 
 onAuthStateChanged(auth, (user) => {
   if (!user) {
@@ -114,24 +116,26 @@ galeriaTurmaSelect.addEventListener("change", async () => {
   let concluido = false;
   setTimeout(() => {
     if (!concluido) {
-      galeriaGrid.innerHTML = `<p class="empty-state">Isso está demorando demais (pode ter bastante foto pra carregar) - verifique sua conexão e aguarde mais um pouco, ou tente atualizar a página.</p>`;
+      galeriaGrid.innerHTML = `<p class="empty-state">Isso está demorando demais - verifique sua conexão e aguarde mais um pouco, ou tente atualizar a página.</p>`;
     }
   }, 10000);
 
   try {
-    const snapshot = await getDocs(query(collection(db, "fotos"), where("turma", "==", turmaAtual)));
-    fotosDaTurma = [];
+    // Busca só os alunos da turma (leve - não depende de quantas fotos
+    // já foram enviadas ao longo do ano, sempre rápido)
+    const snapshot = await getDocs(query(collection(db, "alunos"), where("turma", "==", turmaAtual)));
+    alunosDaTurma = [];
     snapshot.forEach((docSnap) => {
       const dados = docSnap.data();
-      if (dados.pendente || !dados.alunoId) return; // só fotos já identificadas
-      fotosDaTurma.push({ id: docSnap.id, ...dados });
+      const foto = (dados.fotos && dados.fotos[0]) || dados.foto;
+      alunosDaTurma.push({ id: docSnap.id, nome: dados.nome, foto });
     });
     concluido = true;
     renderizarAlunos();
   } catch (erro) {
     concluido = true;
     console.error(erro);
-    galeriaGrid.innerHTML = `<p class="empty-state">Erro ao carregar as fotos: ${erro.message || erro}. Tente atualizar a página.</p>`;
+    galeriaGrid.innerHTML = `<p class="empty-state">Erro ao carregar os alunos: ${erro.message || erro}. Tente atualizar a página.</p>`;
   }
 });
 
@@ -166,39 +170,56 @@ function renderizarAlunos() {
   galeriaCompartilhar.hidden = true;
   galeriaVazio.hidden = true;
 
-  if (fotosDaTurma.length === 0) {
+  if (alunosDaTurma.length === 0) {
     galeriaGrid.innerHTML = "";
     galeriaVazio.hidden = false;
-    galeriaVazio.textContent = "Nenhuma foto identificada ainda nessa turma.";
+    galeriaVazio.textContent = "Nenhum aluno cadastrado ainda nessa turma.";
     return;
   }
 
-  const porAluno = new Map(); // alunoId -> { nome, fotos: [...] }
-  fotosDaTurma.forEach((foto) => {
-    if (!porAluno.has(foto.alunoId)) porAluno.set(foto.alunoId, { nome: foto.alunoNome, fotos: [] });
-    porAluno.get(foto.alunoId).fotos.push(foto);
-  });
-
   galeriaGrid.innerHTML = "";
-  [...porAluno.entries()]
-    .sort((a, b) => a[1].nome.localeCompare(b[1].nome))
-    .forEach(([alunoId, dados]) => {
+  [...alunosDaTurma]
+    .sort((a, b) => a.nome.localeCompare(b.nome))
+    .forEach((aluno) => {
       const card = document.createElement("button");
       card.type = "button";
       card.className = "galeria-card";
       card.innerHTML = `
-        <img src="${dados.fotos[0].foto}" alt="${dados.nome}" class="galeria-card-capa">
+        <img src="${aluno.foto}" alt="${aluno.nome}" class="galeria-card-capa">
         <div class="galeria-card-info">
-          <span class="galeria-card-nome">${dados.nome}</span>
-          <span class="galeria-card-contagem">${dados.fotos.length} foto(s)</span>
+          <span class="galeria-card-nome">${aluno.nome}</span>
         </div>
       `;
-      card.addEventListener("click", () => {
-        alunoAtual = { id: alunoId, nome: dados.nome };
-        renderizarAtividades();
-      });
+      card.addEventListener("click", () => abrirAluno(aluno));
       galeriaGrid.appendChild(card);
     });
+}
+
+// Busca as fotos só desse aluno específico (rápido mesmo que a turma
+// já tenha acumulado muitas fotos ao longo do ano)
+async function abrirAluno(aluno) {
+  alunoAtual = aluno;
+  atividadeAtual = null;
+  mostrarTodasAsAtividades = false;
+
+  renderizarBreadcrumb();
+  galeriaGrid.innerHTML = `<p class="empty-state">Carregando fotos de ${aluno.nome}...</p>`;
+
+  try {
+    const snapshot = await getDocs(
+      query(collection(db, "fotos"), where("turma", "==", turmaAtual), where("alunoId", "==", aluno.id))
+    );
+    fotosDoAlunoAtual = [];
+    snapshot.forEach((docSnap) => {
+      const dados = docSnap.data();
+      if (dados.pendente) return; // só fotos já identificadas
+      fotosDoAlunoAtual.push({ id: docSnap.id, ...dados });
+    });
+    renderizarAtividades();
+  } catch (erro) {
+    console.error(erro);
+    galeriaGrid.innerHTML = `<p class="empty-state">Erro ao carregar as fotos: ${erro.message || erro}.</p>`;
+  }
 }
 
 // ---------- Nível 2: Atividades do aluno ----------
@@ -206,34 +227,58 @@ function renderizarAtividades() {
   renderizarBreadcrumb();
   renderizarCompartilhar();
 
-  const fotosDoAluno = fotosDaTurma.filter((f) => f.alunoId === alunoAtual.id);
-  const porAtividade = new Map(); // atividade -> { fotos: [...], drivePastaId }
-  fotosDoAluno.forEach((foto) => {
+  const porAtividade = new Map(); // atividade -> { fotos: [...] }
+  fotosDoAlunoAtual.forEach((foto) => {
     const chave = foto.atividade || "Sem atividade";
     if (!porAtividade.has(chave)) porAtividade.set(chave, { fotos: [] });
     porAtividade.get(chave).fotos.push(foto);
   });
 
+  const atividadesOrdenadas = [...porAtividade.entries()].sort((a, b) => b[0].localeCompare(a[0])); // mais recente primeiro
+
+  if (atividadesOrdenadas.length === 0) {
+    galeriaGrid.innerHTML = `<p class="empty-state">Nenhuma foto identificada ainda desse aluno.</p>`;
+    return;
+  }
+
+  // Por padrão só mostra as 2 atividades mais recentes - o resto fica
+  // escondido atrás de um "ver mais", pra abrir sempre rápido mesmo
+  // com muitas atividades acumuladas ao longo do ano
+  const LIMITE_INICIAL = 2;
+  const visiveis = mostrarTodasAsAtividades ? atividadesOrdenadas : atividadesOrdenadas.slice(0, LIMITE_INICIAL);
+  const escondidas = atividadesOrdenadas.length - visiveis.length;
+
   galeriaGrid.innerHTML = "";
-  [...porAtividade.entries()]
-    .sort((a, b) => b[0].localeCompare(a[0])) // mais recente primeiro (data no nome)
-    .forEach(([atividade, dados]) => {
-      const card = document.createElement("button");
-      card.type = "button";
-      card.className = "galeria-card";
-      card.innerHTML = `
-        <img src="${dados.fotos[0].foto}" alt="${atividade}" class="galeria-card-capa">
-        <div class="galeria-card-info">
-          <span class="galeria-card-nome">${atividade}</span>
-          <span class="galeria-card-contagem">${dados.fotos.length} foto(s)</span>
-        </div>
-      `;
-      card.addEventListener("click", () => {
-        atividadeAtual = atividade;
-        renderizarFotos();
-      });
-      galeriaGrid.appendChild(card);
+  visiveis.forEach(([atividade, dados]) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "galeria-card";
+    card.innerHTML = `
+      <img src="${dados.fotos[0].foto}" alt="${atividade}" class="galeria-card-capa">
+      <div class="galeria-card-info">
+        <span class="galeria-card-nome">${atividade}</span>
+        <span class="galeria-card-contagem">${dados.fotos.length} foto(s)</span>
+      </div>
+    `;
+    card.addEventListener("click", () => {
+      atividadeAtual = atividade;
+      renderizarFotos();
     });
+    galeriaGrid.appendChild(card);
+  });
+
+  if (escondidas > 0) {
+    const botaoMais = document.createElement("button");
+    botaoMais.type = "button";
+    botaoMais.className = "btn-ghost";
+    botaoMais.style.marginTop = "12px";
+    botaoMais.textContent = `Ver ${escondidas} atividade(s) mais antiga(s)`;
+    botaoMais.addEventListener("click", () => {
+      mostrarTodasAsAtividades = true;
+      renderizarAtividades();
+    });
+    galeriaGrid.appendChild(botaoMais);
+  }
 }
 
 // ---------- Nível 3: Fotos da atividade ----------
@@ -241,7 +286,7 @@ function renderizarFotos() {
   renderizarBreadcrumb();
   renderizarCompartilhar();
 
-  const fotos = fotosDaTurma.filter((f) => f.alunoId === alunoAtual.id && (f.atividade || "Sem atividade") === atividadeAtual);
+  const fotos = fotosDoAlunoAtual.filter((f) => (f.atividade || "Sem atividade") === atividadeAtual);
 
   // Link pra abrir a pasta dessa atividade direto no Drive (qualidade original, dá pra baixar tudo de uma vez)
   const pastaId = fotos.find((f) => f.drivePastaId)?.drivePastaId;
