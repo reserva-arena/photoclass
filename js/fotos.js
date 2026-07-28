@@ -5,7 +5,7 @@
 // direto no navegador do professor - nenhuma foto sai
 // do dispositivo até o momento de salvar.
 
-import { auth, db } from "./firebase-config.js?v=20260727p";
+import { auth, db } from "./firebase-config.js?v=20260727q";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -15,10 +15,10 @@ import {
   addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727p";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727p";
-import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727p";
-import { aprenderComFoto } from "./aprendizado.js?v=20260727p";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727q";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727q";
+import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727q";
+import { aprenderComFoto } from "./aprendizado.js?v=20260727q";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")
@@ -727,9 +727,13 @@ saveButton.addEventListener("click", async () => {
 
     if (pendentesSalvos > 0) {
       saveReviewLink.textContent = `👉 Ver ${pendentesSalvos} foto(s) pendente(s) na Revisão`;
-      saveReviewLink.href = `revisao.html?turma=${encodeURIComponent(turma)}`;
-      saveReviewLink.style.display = "block";
+      saveReviewLink.classList.remove("save-review-link--ok");
+    } else {
+      saveReviewLink.textContent = `🎉 Nenhuma foto pendente - tudo já identificado!`;
+      saveReviewLink.classList.add("save-review-link--ok");
     }
+    saveReviewLink.href = `revisao.html?turma=${encodeURIComponent(turma)}`;
+    saveReviewLink.style.display = "block";
 
     resultsCard.hidden = true;
     fotosInput.value = "";

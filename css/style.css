@@ -1043,6 +1043,11 @@ select {
   padding: 0 8px 10px;
 }
 
+.save-review-link--ok {
+  border-color: var(--color-teal) !important;
+  color: var(--color-teal) !important;
+}
+
 /* ---------- Tela de Professoras ---------- */
 
 .turmas-checklist {
