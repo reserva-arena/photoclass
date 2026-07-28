@@ -6,7 +6,7 @@
 // consultar o Google Drive ao vivo, então é rápido pra qualquer um
 // que tenha acesso ao app (não exige autorização do Drive).
 
-import { auth, db } from "./firebase-config.js?v=20260728f";
+import { auth, db } from "./firebase-config.js?v=20260728g";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -14,20 +14,21 @@ import {
   where,
   orderBy,
   limit,
+  startAfter,
   getDocs,
   doc,
   getDoc,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728f";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728g";
 import {
   garantirTokenAcesso,
   obterOuCriarPasta,
   compartilharComEmail,
   listarAcessosPorEmail,
   removerCompartilhamento
-} from "./drive-upload.js?v=20260728f";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260728f";
+} from "./drive-upload.js?v=20260728g";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260728g";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -41,12 +42,13 @@ const galeriaGrid = document.getElementById("galeria-grid");
 
 let turmasPermitidas = null;
 let alunosDaTurma = []; // [{id, nome, foto}] - leve, vem do cadastro, não das fotos
-let fotosDoAlunoAtual = []; // só as fotos do aluno que está aberto agora
-let fotosLimitadasDoAlunoAtual = false; // true = pode ter fotos mais antigas que nem foram buscadas ainda
+let fotosDoAlunoAtual = []; // só as fotos do aluno que está aberto agora (vai crescendo conforme pagina)
+let ultimoDocPaginacao = null; // cursor pra buscar a próxima leva de fotos mais antigas
+let semMaisFotosAntigas = false; // true = já buscou tudo desse aluno
+let indiceQueryFallback = false; // true = Firestore ainda não tem o índice, usando busca sem paginação
 let turmaAtual = null;
 let alunoAtual = null; // { id, nome }
 let atividadeAtual = null; // string
-let mostrarTodasAsAtividades = false; // false = só as 2 mais recentes
 
 onAuthStateChanged(auth, (user) => {
   if (!user) {
@@ -198,56 +200,78 @@ function renderizarAlunos() {
     });
 }
 
-// Busca as fotos só desse aluno específico (rápido mesmo que a turma
-// já tenha acumulado muitas fotos ao longo do ano)
-const LIMITE_FOTOS_POR_ALUNO = 60; // mais que suficiente pra "2 atividades recentes" - garante velocidade
+// Busca as fotos só desse aluno específico, em levas pequenas (não tudo
+// de uma vez) - rápido sempre, mesmo que a turma acumule muitas fotos
+// ao longo do ano. Cada leva cobre normalmente 1-2 atividades.
+const TAMANHO_DA_LEVA = 20;
 
 async function abrirAluno(aluno) {
   alunoAtual = aluno;
   atividadeAtual = null;
-  mostrarTodasAsAtividades = false;
+  fotosDoAlunoAtual = [];
+  ultimoDocPaginacao = null;
+  semMaisFotosAntigas = false;
+  indiceQueryFallback = false;
 
   renderizarBreadcrumb();
   galeriaGrid.innerHTML = `<p class="empty-state">Carregando fotos de ${aluno.nome}...</p>`;
 
   try {
-    const fotosRef = collection(db, "fotos");
-    let snapshot;
-    let limitado = false;
+    await buscarMaisFotosDoAluno();
+    renderizarAtividades();
+  } catch (erro) {
+    console.error(erro);
+    galeriaGrid.innerHTML = `<p class="empty-state">Erro ao carregar as fotos: ${erro.message || erro}.</p>`;
+  }
+}
 
-    try {
-      // Tentativa otimizada: só as fotos mais recentes (precisa de um
-      // índice no Firestore - se ainda não existir, cai no plano B abaixo)
-      snapshot = await getDocs(
-        query(
-          fotosRef,
-          where("turma", "==", turmaAtual),
-          where("alunoId", "==", aluno.id),
-          orderBy("criadoEm", "desc"),
-          limit(LIMITE_FOTOS_POR_ALUNO)
-        )
-      );
-      limitado = snapshot.size >= LIMITE_FOTOS_POR_ALUNO;
-    } catch (erroIndice) {
-      // Índice ainda não criado no Firestore - busca tudo mesmo (mais lento,
-      // mas funciona). O link pra criar o índice (e resolver de vez) aparece
-      // no console do navegador.
-      console.warn("Consulta otimizada indisponível (falta criar um índice no Firestore) - usando busca completa. Link pra criar o índice:", erroIndice.message);
-      snapshot = await getDocs(query(fotosRef, where("turma", "==", turmaAtual), where("alunoId", "==", aluno.id)));
+// Busca a próxima leva de fotos mais antigas desse aluno (usado tanto
+// na primeira abertura quanto no botão "ver mais antigas")
+async function buscarMaisFotosDoAluno() {
+  if (semMaisFotosAntigas) return;
+
+  const fotosRef = collection(db, "fotos");
+
+  try {
+    if (indiceQueryFallback) {
+      // Já caiu no plano B antes (sem índice) - não dá pra paginar,
+      // então essa função não faz mais nada depois da primeira busca
+      return;
     }
 
-    fotosDoAlunoAtual = [];
+    const restricoes = [
+      where("turma", "==", turmaAtual),
+      where("alunoId", "==", alunoAtual.id),
+      orderBy("criadoEm", "desc")
+    ];
+    if (ultimoDocPaginacao) restricoes.push(startAfter(ultimoDocPaginacao));
+    restricoes.push(limit(TAMANHO_DA_LEVA));
+
+    const snapshot = await getDocs(query(fotosRef, ...restricoes));
+
     snapshot.forEach((docSnap) => {
       const dados = docSnap.data();
       if (dados.pendente) return; // só fotos já identificadas
       fotosDoAlunoAtual.push({ id: docSnap.id, ...dados });
     });
 
-    fotosLimitadasDoAlunoAtual = limitado;
-    renderizarAtividades();
-  } catch (erro) {
-    console.error(erro);
-    galeriaGrid.innerHTML = `<p class="empty-state">Erro ao carregar as fotos: ${erro.message || erro}.</p>`;
+    if (snapshot.size > 0) ultimoDocPaginacao = snapshot.docs[snapshot.docs.length - 1];
+    semMaisFotosAntigas = snapshot.size < TAMANHO_DA_LEVA;
+  } catch (erroIndice) {
+    // Índice ainda não criado no Firestore - busca tudo de uma vez só
+    // (mais lento, mas funciona). O link pra criar o índice de vez
+    // aparece no console do navegador.
+    console.warn("Paginação indisponível (falta criar um índice no Firestore) - buscando tudo de uma vez. Detalhes:", erroIndice.message);
+    indiceQueryFallback = true;
+    semMaisFotosAntigas = true;
+
+    const snapshot = await getDocs(query(fotosRef, where("turma", "==", turmaAtual), where("alunoId", "==", alunoAtual.id)));
+    fotosDoAlunoAtual = [];
+    snapshot.forEach((docSnap) => {
+      const dados = docSnap.data();
+      if (dados.pendente) return;
+      fotosDoAlunoAtual.push({ id: docSnap.id, ...dados });
+    });
   }
 }
 
@@ -270,15 +294,8 @@ function renderizarAtividades() {
     return;
   }
 
-  // Por padrão só mostra as 2 atividades mais recentes - o resto fica
-  // escondido atrás de um "ver mais", pra abrir sempre rápido mesmo
-  // com muitas atividades acumuladas ao longo do ano
-  const LIMITE_INICIAL = 2;
-  const visiveis = mostrarTodasAsAtividades ? atividadesOrdenadas : atividadesOrdenadas.slice(0, LIMITE_INICIAL);
-  const escondidas = atividadesOrdenadas.length - visiveis.length;
-
   galeriaGrid.innerHTML = "";
-  visiveis.forEach(([atividade, dados]) => {
+  atividadesOrdenadas.forEach(([atividade, dados]) => {
     const card = document.createElement("button");
     card.type = "button";
     card.className = "galeria-card";
@@ -296,23 +313,19 @@ function renderizarAtividades() {
     galeriaGrid.appendChild(card);
   });
 
-  if (escondidas > 0) {
+  if (!semMaisFotosAntigas) {
     const botaoMais = document.createElement("button");
     botaoMais.type = "button";
     botaoMais.className = "btn-ghost";
     botaoMais.style.marginTop = "12px";
-    botaoMais.textContent = `Ver ${escondidas} atividade(s) mais antiga(s)`;
-    botaoMais.addEventListener("click", () => {
-      mostrarTodasAsAtividades = true;
+    botaoMais.textContent = "Ver atividades mais antigas";
+    botaoMais.addEventListener("click", async () => {
+      botaoMais.disabled = true;
+      botaoMais.textContent = "Buscando...";
+      await buscarMaisFotosDoAluno();
       renderizarAtividades();
     });
     galeriaGrid.appendChild(botaoMais);
-  } else if (fotosLimitadasDoAlunoAtual) {
-    const aviso = document.createElement("p");
-    aviso.className = "card-subtitle";
-    aviso.style.marginTop = "12px";
-    aviso.textContent = `Mostrando só as ${LIMITE_FOTOS_POR_ALUNO} fotos mais recentes desse aluno. Fotos bem mais antigas podem não aparecer aqui (mas continuam salvas no Drive).`;
-    galeriaGrid.appendChild(aviso);
   }
 }
 

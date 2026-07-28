@@ -7,7 +7,7 @@
 // sempre usam a visão de Professor, restrita às turmas liberadas
 // pra elas (coleção "professores" no Firestore).
 
-import { db } from "./firebase-config.js?v=20260728f";
+import { db } from "./firebase-config.js?v=20260728g";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const ADMIN_EMAILS = [
