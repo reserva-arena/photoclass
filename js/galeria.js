@@ -6,7 +6,7 @@
 // consultar o Google Drive ao vivo, então é rápido pra qualquer um
 // que tenha acesso ao app (não exige autorização do Drive).
 
-import { auth, db } from "./firebase-config.js?v=20260728g";
+import { auth, db } from "./firebase-config.js?v=20260728h";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -20,15 +20,15 @@ import {
   getDoc,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728g";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728h";
 import {
   garantirTokenAcesso,
   obterOuCriarPasta,
   compartilharComEmail,
   listarAcessosPorEmail,
   removerCompartilhamento
-} from "./drive-upload.js?v=20260728g";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260728g";
+} from "./drive-upload.js?v=20260728h";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260728h";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -132,7 +132,9 @@ galeriaTurmaSelect.addEventListener("change", async () => {
     alunosDaTurma = [];
     snapshot.forEach((docSnap) => {
       const dados = docSnap.data();
-      const foto = (dados.fotos && dados.fotos[0]) || dados.foto;
+      // Compatível com cadastros antigos que ainda não foram salvos de
+      // novo desde a separação das fotos pesadas (sem "capa" ainda)
+      const foto = dados.capa || (dados.fotos && dados.fotos[0]) || dados.foto;
       alunosDaTurma.push({ id: docSnap.id, nome: dados.nome, foto });
     });
     concluido = true;

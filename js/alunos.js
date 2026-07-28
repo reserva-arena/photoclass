@@ -1,15 +1,21 @@
 // ============================================
 // PhotoClass - Cadastro de Alunos
 // ============================================
-// Até 3 fotos de referência por aluno (base64 no Firestore), pra
-// melhorar a precisão do reconhecimento em ângulos/expressões
-// diferentes. Comprimidas no navegador antes de salvar.
+// Até 3 fotos de referência por aluno + fotos "aprendidas" com o uso.
+// Pra manter as telas de listagem (Alunos, Galeria) sempre rápidas no
+// celular, essas fotos pesadas NÃO ficam no documento principal do
+// aluno - elas vivem separadas, em "alunos_referencia/{id}", e só são
+// buscadas quando realmente precisa (editar aluno, ou reconhecer
+// rostos). O documento principal "alunos/{id}" guarda só o essencial
+// + uma capa pequena, pra listar rápido sempre.
 
-import { auth, db } from "./firebase-config.js?v=20260728g";
+import { auth, db } from "./firebase-config.js?v=20260728h";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
   addDoc,
+  setDoc,
+  getDoc,
   updateDoc,
   deleteDoc,
   doc,
@@ -19,9 +25,9 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728g";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260728g";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260728g";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728h";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260728h";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260728h";
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");
@@ -150,36 +156,42 @@ function definirCarregando(carregando) {
 }
 
 // ---------- Modo edição ----------
-function entrarModoEdicao(id) {
+async function entrarModoEdicao(id) {
   const aluno = alunosCache.get(id);
   if (!aluno) return;
 
   alunoEmEdicaoId = id;
-  // Compatível com cadastros antigos (campo único "foto") e novos ("fotos": [...])
-  const fotosAtuais = aluno.fotos && aluno.fotos.length > 0 ? aluno.fotos : (aluno.foto ? [aluno.foto] : []);
-  fotosEmEdicao = [fotosAtuais[0] || null, fotosAtuais[1] || null, fotosAtuais[2] || null];
-
   nomeInput.value = aluno.nome;
   turmaInput.value = aluno.turma;
   emailsResponsaveisInput.value = (aluno.emailsResponsaveis || []).join(", ");
-
-  fotoInputs.forEach((input, indice) => {
-    input.value = "";
-    if (fotosEmEdicao[indice]) {
-      photoPreviews[indice].src = fotosEmEdicao[indice];
-      photoPreviews[indice].hidden = false;
-      photoPreviewPlaceholders[indice].hidden = true;
-    } else {
-      photoPreviews[indice].hidden = true;
-      photoPreviewPlaceholders[indice].hidden = false;
-    }
-  });
 
   formTitle.textContent = `Editando: ${aluno.nome}`;
   submitButtonText.textContent = "Salvar alterações";
   cancelEditButton.hidden = false;
   fotoHint.hidden = false;
   esconderMensagens();
+  fotoInputs.forEach((input) => { input.value = ""; });
+
+  // Fotos de referência ficam separadas (documento mais pesado) -
+  // busca só agora, na hora de editar
+  photoPreviewPlaceholders.forEach((p) => { p.textContent = "Carregando..."; });
+  const refSnap = await getDoc(doc(db, "alunos_referencia", id));
+  const fotosAtuais = refSnap.exists() && refSnap.data().fotos && refSnap.data().fotos.length > 0
+    ? refSnap.data().fotos
+    : (aluno.fotos && aluno.fotos.length > 0 ? aluno.fotos : (aluno.foto ? [aluno.foto] : [])); // compatível com cadastros bem antigos ainda não migrados
+  fotosEmEdicao = [fotosAtuais[0] || null, fotosAtuais[1] || null, fotosAtuais[2] || null];
+
+  fotoInputs.forEach((input, indice) => {
+    if (fotosEmEdicao[indice]) {
+      photoPreviews[indice].src = fotosEmEdicao[indice];
+      photoPreviews[indice].hidden = false;
+      photoPreviewPlaceholders[indice].hidden = true;
+    } else {
+      photoPreviewPlaceholders[indice].textContent = `Foto ${indice + 1}`;
+      photoPreviews[indice].hidden = true;
+      photoPreviewPlaceholders[indice].hidden = false;
+    }
+  });
 
   form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -234,6 +246,31 @@ function arquivoParaBase64(arquivo) {
   });
 }
 
+// Gera uma versão bem pequena de uma foto já existente (data URL), só
+// pra usar como capa nas listagens - rápida de carregar sempre
+function comprimirCapa(dataUrl, maxDim = 100, qualidade = 0.6) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > height && width > maxDim) {
+        height = Math.round(height * (maxDim / width));
+        width = maxDim;
+      } else if (height > maxDim) {
+        width = Math.round(width * (maxDim / height));
+        height = maxDim;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", qualidade));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
 // ---------- Cadastro / Edição de aluno ----------
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -282,25 +319,31 @@ form.addEventListener("submit", async (event) => {
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean);
 
-    const dados = {
+    const capa = await comprimirCapa(fotos[0]);
+
+    // Documento leve (é o que a listagem de Alunos e a Galeria buscam
+    // toda hora - precisa ficar sempre pequeno e rápido)
+    const dadosLeves = {
       nome,
       turma,
-      fotos,
-      foto: fotos[0], // mantido por compatibilidade com telas antigas
       emailsResponsaveis,
+      capa,
+      totalFotos: fotos.length,
       segmento: TURMAS.find((t) => t.nome === turma)?.segmento || "desconhecido"
     };
 
     if (editando) {
-      await updateDoc(doc(db, "alunos", alunoEmEdicaoId), dados);
+      await updateDoc(doc(db, "alunos", alunoEmEdicaoId), dadosLeves);
+      await setDoc(doc(db, "alunos_referencia", alunoEmEdicaoId), { fotos }, { merge: true });
       mostrarSucesso(`${nome} atualizado(a) com sucesso!`);
       sairModoEdicao();
     } else {
-      await addDoc(collection(db, "alunos"), {
-        ...dados,
+      const novoDoc = await addDoc(collection(db, "alunos"), {
+        ...dadosLeves,
         criadoPor: usuarioAtual.uid,
         criadoEm: serverTimestamp()
       });
+      await setDoc(doc(db, "alunos_referencia", novoDoc.id), { fotos });
       mostrarSucesso(`${nome} cadastrado(a) com sucesso!`);
       sairModoEdicao();
     }
@@ -352,8 +395,10 @@ function carregarAlunos() {
 
       const card = document.createElement("div");
       card.className = "student-card";
-      const fotoCapa = (aluno.fotos && aluno.fotos[0]) || aluno.foto;
-      const totalFotos = aluno.fotos ? aluno.fotos.length : (aluno.foto ? 1 : 0);
+      // Compatível com cadastros antigos (que ainda não foram salvos
+      // de novo desde essa mudança, e por isso não têm "capa" ainda)
+      const fotoCapa = aluno.capa || (aluno.fotos && aluno.fotos[0]) || aluno.foto;
+      const totalFotos = aluno.totalFotos ?? (aluno.fotos ? aluno.fotos.length : (aluno.foto ? 1 : 0));
       card.innerHTML = `
         <button class="student-edit" title="Editar aluno" data-id="${docSnap.id}">✎</button>
         <img src="${fotoCapa}" alt="Foto de ${aluno.nome}" class="student-photo">
@@ -380,6 +425,7 @@ function carregarAlunos() {
         if (confirm("Remover este aluno?")) {
           if (alunoEmEdicaoId === id) sairModoEdicao();
           await deleteDoc(doc(db, "alunos", id));
+          await deleteDoc(doc(db, "alunos_referencia", id)).catch(() => {}); // ignora se já não existir
         }
       });
     });
