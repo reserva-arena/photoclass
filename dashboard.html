@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20260728a">
+  <link rel="stylesheet" href="css/style.css?v=20260728b">
 </head>
 <body>
 
@@ -41,6 +41,11 @@
       <p class="card-subtitle" id="welcome-subtitle">Carregando resumo...</p>
 
       <div id="stats-grid" class="stats-grid" hidden>
+        <a href="fotos.html" class="stat-card stat-card--acao stat-card--destaque">
+          <span class="stat-number">📸</span>
+          <span class="stat-label">Enviar fotos de uma atividade</span>
+          <span class="stat-cta">+ Enviar fotos</span>
+        </a>
         <a href="alunos.html" class="stat-card">
           <span class="stat-number" id="stat-alunos">–</span>
           <span class="stat-label">aluno(s) cadastrado(s)</span>
@@ -54,12 +59,12 @@
         <a href="revisao.html" class="stat-card" id="stat-pendentes-card">
           <span class="stat-number" id="stat-pendentes">–</span>
           <span class="stat-label">foto(s) aguardando revisão</span>
-          <span class="stat-cta">Clique aqui para revisar →</span>
+          <span class="stat-cta" id="stat-pendentes-cta">Clique aqui para revisar →</span>
         </a>
-        <a href="fotos.html" class="stat-card stat-card--acao">
-          <span class="stat-number">📸</span>
-          <span class="stat-label">Enviar fotos de uma atividade</span>
-          <span class="stat-cta">+ Enviar fotos</span>
+        <a href="galeria.html" class="stat-card">
+          <span class="stat-number">🖼️</span>
+          <span class="stat-label">Ver fotos organizadas</span>
+          <span class="stat-cta">Ir para a Galeria →</span>
         </a>
       </div>
 
@@ -67,7 +72,7 @@
     </section>
   </main>
 
-  <script type="module" src="js/dashboard.js?v=20260728a"></script>
+  <script type="module" src="js/dashboard.js?v=20260728b"></script>
   <footer class="app-footer">
     <strong>PhotoClass</strong> · Dev: Luciano Galdino · Frontend: HTML, CSS, JS · Hospedagem: GitHub Pages · Backend: Firebase + Google Drive
   </footer>

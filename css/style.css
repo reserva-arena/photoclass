@@ -500,6 +500,15 @@ body {
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
+.stat-card--destaque {
+  grid-column: 1 / -1;
+  padding: 20px 16px;
+}
+
+.stat-card--destaque .stat-number {
+  font-size: 24px;
+}
+
 a.stat-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 20px -12px rgba(26, 107, 71, 0.35);
