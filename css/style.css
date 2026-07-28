@@ -1048,6 +1048,21 @@ select {
   color: var(--color-teal) !important;
 }
 
+/* ---------- Rodapé ---------- */
+
+.app-footer {
+  background: var(--color-navy);
+  color: rgba(255, 255, 255, 0.75);
+  text-align: center;
+  padding: 14px 20px;
+  font-size: 12px;
+  margin-top: 30px;
+}
+
+.app-footer strong {
+  color: var(--color-white);
+}
+
 /* ---------- Tela de Professoras ---------- */
 
 .turmas-checklist {
