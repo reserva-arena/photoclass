@@ -12,7 +12,7 @@
 // reconhecimentos automáticos aceitos sem revisão - só de ações que
 // exigiram escolha manual da professora.
 
-import { db } from "./firebase-config.js?v=20260727u";
+import { db } from "./firebase-config.js?v=20260728a";
 import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const MAX_FOTOS_APRENDIDAS = 5; // limite por aluno, pra não pesar o documento nem deixar o reconhecimento lento demais

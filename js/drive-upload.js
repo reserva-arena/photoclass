@@ -9,7 +9,7 @@
 // à professora logada - a janela de consentimento do Google aparece
 // só na primeira vez (ou quando o token expira, ~1h).
 
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260727u";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260728a";
 
 const PASTA_MIME = "application/vnd.google-apps.folder";
 
@@ -249,6 +249,38 @@ export async function excluirArquivo(fileId, accessToken) {
   if (!resposta.ok && resposta.status !== 404) {
     throw new Error(`Erro ao excluir o arquivo no Drive: ${await mensagemDeErroGoogle(resposta)}`);
   }
+}
+
+// Compartilha uma pasta com o e-mail específico de alguém (mais seguro
+// que "qualquer pessoa com o link" - só quem estiver logado com essa
+// conta Google consegue acessar). O Google manda um e-mail de convite
+// automático pra essa pessoa.
+export async function compartilharComEmail(pastaId, email, accessToken) {
+  const resposta = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${pastaId}/permissions?supportsAllDrives=true&sendNotificationEmail=true`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ role: "reader", type: "user", emailAddress: email })
+    }
+  );
+  if (!resposta.ok) throw new Error(`Erro ao compartilhar com ${email}: ${await mensagemDeErroGoogle(resposta)}`);
+  return resposta.json();
+}
+
+// Lista quem já tem acesso direto (por e-mail, não "qualquer um com o
+// link") a uma pasta
+export async function listarAcessosPorEmail(pastaId, accessToken) {
+  const resposta = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${pastaId}/permissions?supportsAllDrives=true&fields=permissions(id,type,role,emailAddress)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!resposta.ok) throw new Error(`Erro ao listar acessos: ${await mensagemDeErroGoogle(resposta)}`);
+  const dados = await resposta.json();
+  return (dados.permissions || []).filter((p) => p.type === "user" && p.role === "reader");
 }
 
 // ---------- Compartilhamento (link pros pais) ----------

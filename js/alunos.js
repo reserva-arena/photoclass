@@ -5,7 +5,7 @@
 // melhorar a precisão do reconhecimento em ângulos/expressões
 // diferentes. Comprimidas no navegador antes de salvar.
 
-import { auth, db } from "./firebase-config.js?v=20260727u";
+import { auth, db } from "./firebase-config.js?v=20260728a";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -19,9 +19,9 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727u";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727u";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260727u";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728a";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260728a";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260728a";
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");
@@ -67,6 +67,7 @@ function preencherTurmas() {
   });
 }
 const fotoInputs = [1, 2, 3].map((n) => document.getElementById(`foto-${n}`));
+const emailsResponsaveisInput = document.getElementById("emails-responsaveis");
 const photoPreviews = [1, 2, 3].map((n) => document.getElementById(`photo-preview-img-${n}`));
 const photoPreviewPlaceholders = [1, 2, 3].map((n) => document.getElementById(`photo-preview-placeholder-${n}`));
 const formError = document.getElementById("form-error");
@@ -160,6 +161,7 @@ function entrarModoEdicao(id) {
 
   nomeInput.value = aluno.nome;
   turmaInput.value = aluno.turma;
+  emailsResponsaveisInput.value = (aluno.emailsResponsaveis || []).join(", ");
 
   fotoInputs.forEach((input, indice) => {
     input.value = "";
@@ -275,11 +277,17 @@ form.addEventListener("submit", async (event) => {
       }
     }
 
+    const emailsResponsaveis = emailsResponsaveisInput.value
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+
     const dados = {
       nome,
       turma,
       fotos,
       foto: fotos[0], // mantido por compatibilidade com telas antigas
+      emailsResponsaveis,
       segmento: TURMAS.find((t) => t.nome === turma)?.segmento || "desconhecido"
     };
 

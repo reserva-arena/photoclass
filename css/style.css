@@ -723,6 +723,21 @@ a.stat-card:hover {
   color: var(--color-navy);
 }
 
+.galeria-email-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--color-navy);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.galeria-email-item:last-child {
+  border-bottom: none;
+}
+
 input[type="file"] {
   font-family: var(--font-body);
   font-size: 13px;

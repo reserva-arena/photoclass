@@ -6,23 +6,26 @@
 // consultar o Google Drive ao vivo, então é rápido pra qualquer um
 // que tenha acesso ao app (não exige autorização do Drive).
 
-import { auth, db } from "./firebase-config.js?v=20260727u";
+import { auth, db } from "./firebase-config.js?v=20260728a";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
   query,
   where,
-  getDocs
+  getDocs,
+  doc,
+  getDoc,
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727u";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728a";
 import {
   garantirTokenAcesso,
   obterOuCriarPasta,
-  compartilharPasta,
-  verificarCompartilhamento,
+  compartilharComEmail,
+  listarAcessosPorEmail,
   removerCompartilhamento
-} from "./drive-upload.js?v=20260727u";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260727u";
+} from "./drive-upload.js?v=20260728a";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260728a";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -246,65 +249,123 @@ function renderizarFotos() {
   });
 }
 
-// ---------- Compartilhar pasta do aluno com os pais ----------
-function renderizarCompartilhar() {
+// ---------- Compartilhar pasta do aluno com os pais (por e-mail específico) ----------
+async function renderizarCompartilhar() {
   galeriaCompartilhar.hidden = false;
+  galeriaCompartilhar.innerHTML = `<p class="card-subtitle">Carregando...</p>`;
+
+  const alunoSnap = await getDoc(doc(db, "alunos", alunoAtual.id));
+  const emails = (alunoSnap.exists() && alunoSnap.data().emailsResponsaveis) || [];
+
   galeriaCompartilhar.innerHTML = `
-    <button id="galeria-compartilhar-btn" class="btn-ghost">🔗 Gerar/ver link para os pais (ver e baixar as fotos deste aluno)</button>
-    <div id="galeria-compartilhar-resultado"></div>
+    <p class="card-subtitle" style="margin-bottom: 8px;">
+      Compartilhar as fotos de ${alunoAtual.nome} por e-mail específico - só quem estiver logado com essa conta Google consegue ver e baixar, sem poder apagar nada.
+    </p>
+    <div id="galeria-emails-lista">
+      ${emails.map((email) => `
+        <div class="galeria-email-item">
+          <span>${email}</span>
+          <button class="btn-ghost galeria-email-acao-btn" data-email="${email}">Verificando...</button>
+        </div>
+      `).join("")}
+    </div>
+    ${emails.length === 0 ? `<p class="card-subtitle">Nenhum e-mail de responsável cadastrado ainda pra ${alunoAtual.nome}. Adicione abaixo (também salva pro cadastro do aluno).</p>` : ""}
+    <div class="galeria-compartilhar-link">
+      <input type="email" id="galeria-novo-email" placeholder="email-do-responsavel@gmail.com">
+      <button class="btn-ghost" id="galeria-adicionar-email">+ Adicionar e compartilhar</button>
+    </div>
   `;
 
-  document.getElementById("galeria-compartilhar-btn").addEventListener("click", async (evento) => {
-    const botao = evento.target;
-    const resultado = document.getElementById("galeria-compartilhar-resultado");
-    botao.disabled = true;
-    botao.textContent = "Verificando...";
+  let accessTokenCache = null;
+  let pastaAlunoId = null;
+  async function garantirPastaEToken() {
+    if (!accessTokenCache) accessTokenCache = await garantirTokenAcesso();
+    if (!pastaAlunoId) {
+      const pastaTurma = await obterOuCriarPasta(turmaAtual, DRIVE_CONFIG.pastaRaizId, accessTokenCache);
+      pastaAlunoId = await obterOuCriarPasta(alunoAtual.nome, pastaTurma, accessTokenCache);
+    }
+    return { accessToken: accessTokenCache, pastaAluno: pastaAlunoId };
+  }
 
+  async function atualizarBotoesDeStatus() {
+    const botoes = [...document.querySelectorAll(".galeria-email-acao-btn")];
+    if (botoes.length === 0) return;
     try {
-      const accessToken = await garantirTokenAcesso();
-      const pastaTurma = await obterOuCriarPasta(turmaAtual, DRIVE_CONFIG.pastaRaizId, accessToken);
-      const pastaAluno = await obterOuCriarPasta(alunoAtual.nome, pastaTurma, accessToken);
-
-      let compartilhamento = await verificarCompartilhamento(pastaAluno, accessToken);
-      if (!compartilhamento) {
-        botao.textContent = "Gerando link...";
-        const link = await compartilharPasta(pastaAluno, accessToken);
-        compartilhamento = { link, id: null };
-        // busca de novo pra pegar o id da permissão (necessário caso queira remover depois)
-        compartilhamento = (await verificarCompartilhamento(pastaAluno, accessToken)) || compartilhamento;
-      }
-
-      resultado.innerHTML = `
-        <p class="card-subtitle" style="margin: 8px 0 4px;">Qualquer pessoa com esse link consegue ver e baixar as fotos de ${alunoAtual.nome} (sem poder apagar nada):</p>
-        <div class="galeria-compartilhar-link">
-          <input type="text" readonly value="${compartilhamento.link}" onclick="this.select()">
-          <button class="btn-ghost" id="galeria-copiar-link">Copiar link</button>
-          <button class="btn-ghost" id="galeria-remover-link">Remover acesso</button>
-        </div>
-      `;
-
-      document.getElementById("galeria-copiar-link").addEventListener("click", async () => {
-        await navigator.clipboard.writeText(compartilhamento.link);
-        const btnCopiar = document.getElementById("galeria-copiar-link");
-        btnCopiar.textContent = "Copiado ✓";
-        setTimeout(() => { btnCopiar.textContent = "Copiar link"; }, 2000);
-      });
-
-      document.getElementById("galeria-remover-link").addEventListener("click", async () => {
-        if (!confirm("Remover o acesso? O link para de funcionar pros pais.")) return;
-        if (compartilhamento.id) {
-          await removerCompartilhamento(pastaAluno, compartilhamento.id, accessToken);
+      const { accessToken, pastaAluno } = await garantirPastaEToken();
+      const acessos = await listarAcessosPorEmail(pastaAluno, accessToken);
+      botoes.forEach((botao) => {
+        const email = botao.getAttribute("data-email");
+        const permissao = acessos.find((p) => p.emailAddress?.toLowerCase() === email.toLowerCase());
+        if (permissao) {
+          botao.textContent = "✓ Compartilhado - Remover acesso";
+          botao.dataset.permissaoId = permissao.id;
+        } else {
+          botao.textContent = "Compartilhar";
+          delete botao.dataset.permissaoId;
         }
-        renderizarCompartilhar();
       });
-
-      botao.textContent = "🔗 Gerar/ver link para os pais (ver e baixar as fotos deste aluno)";
-      botao.disabled = false;
     } catch (erro) {
       console.error(erro);
-      alert(`Erro ao gerar o link:\n\n${erro.message || erro}`);
-      botao.disabled = false;
-      botao.textContent = "🔗 Gerar/ver link para os pais (ver e baixar as fotos deste aluno)";
+      botoes.forEach((botao) => { botao.textContent = "Compartilhar"; });
+    }
+  }
+
+  atualizarBotoesDeStatus();
+
+  document.querySelectorAll(".galeria-email-acao-btn").forEach((botao) => {
+    botao.addEventListener("click", async () => {
+      const email = botao.getAttribute("data-email");
+      const textoOriginal = botao.textContent;
+      botao.disabled = true;
+
+      try {
+        const { accessToken, pastaAluno } = await garantirPastaEToken();
+        if (botao.dataset.permissaoId) {
+          if (!confirm(`Remover o acesso de ${email}?`)) {
+            botao.disabled = false;
+            return;
+          }
+          await removerCompartilhamento(pastaAluno, botao.dataset.permissaoId, accessToken);
+        } else {
+          botao.textContent = "Compartilhando...";
+          await compartilharComEmail(pastaAluno, email, accessToken);
+        }
+        await atualizarBotoesDeStatus();
+      } catch (erro) {
+        console.error(erro);
+        alert(`Erro:\n\n${erro.message || erro}`);
+        botao.textContent = textoOriginal;
+      } finally {
+        botao.disabled = false;
+      }
+    });
+  });
+
+  document.getElementById("galeria-adicionar-email").addEventListener("click", async () => {
+    const input = document.getElementById("galeria-novo-email");
+    const email = input.value.trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      alert("Digite um e-mail válido.");
+      return;
+    }
+
+    const botaoAdicionar = document.getElementById("galeria-adicionar-email");
+    botaoAdicionar.disabled = true;
+    botaoAdicionar.textContent = "Adicionando...";
+
+    try {
+      const novaLista = [...new Set([...emails, email])];
+      await updateDoc(doc(db, "alunos", alunoAtual.id), { emailsResponsaveis: novaLista });
+
+      const { accessToken, pastaAluno } = await garantirPastaEToken();
+      await compartilharComEmail(pastaAluno, email, accessToken);
+
+      renderizarCompartilhar(); // recarrega a lista já com o novo e-mail
+    } catch (erro) {
+      console.error(erro);
+      alert(`Erro ao adicionar/compartilhar:\n\n${erro.message || erro}`);
+      botaoAdicionar.disabled = false;
+      botaoAdicionar.textContent = "+ Adicionar e compartilhar";
     }
   });
 }
