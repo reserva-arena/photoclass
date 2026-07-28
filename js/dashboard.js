@@ -5,7 +5,7 @@
 // de revisão - tudo já filtrado pelas turmas permitidas quando
 // não é a conta admin.
 
-import { auth, db } from "./firebase-config.js?v=20260728b";
+import { auth, db } from "./firebase-config.js?v=20260728c";
 import {
   onAuthStateChanged,
   signOut
@@ -16,8 +16,8 @@ import {
   where,
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728b";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260728b";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728c";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260728c";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");

@@ -5,7 +5,7 @@
 // a nenhum aluno automaticamente aparecem aqui, pra professora
 // resolver manualmente sem precisar subir tudo de novo.
 
-import { auth, db } from "./firebase-config.js?v=20260728b";
+import { auth, db } from "./firebase-config.js?v=20260728c";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -19,10 +19,10 @@ import {
   getDocs,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728b";
-import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, copiarArquivo, excluirArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260728b";
-import { aprenderComFoto } from "./aprendizado.js?v=20260728b";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260728b";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728c";
+import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, copiarArquivo, excluirArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260728c";
+import { aprenderComFoto } from "./aprendizado.js?v=20260728c";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260728c";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -35,6 +35,16 @@ let alunosPorTurma = {}; // { "9B": [{id, nome}, ...] }
 let pararDeEscutar = null;
 let itensPendentes = new Map(); // grupoId -> { item, docs: [{id, driveFileId, drivePastaId, ...}] } - fotos da mesma imagem viram um grupo só
 let turmasPermitidas = null; // null = admin (todas); [] = nenhuma turma liberada ainda
+let carregamentoConcluido = false;
+
+// Se em 10s ainda não carregou nem deu erro (rede muito lenta/travada),
+// avisa em vez de deixar "Carregando..." pra sempre
+setTimeout(() => {
+  if (!carregamentoConcluido) {
+    revisaoSubtitle.textContent = "Demorando mais que o esperado...";
+    revisaoList.innerHTML = `<p class="empty-state">Isso está demorando demais - verifique sua conexão e tente atualizar a página.</p>`;
+  }
+}, 10000);
 
 onAuthStateChanged(auth, (user) => {
   if (!user) {
@@ -45,9 +55,13 @@ onAuthStateChanged(auth, (user) => {
     configurarAlternadorVisao(user.email);
     configurarMenuMobile();
     configurarNavProfessores(user.email);
-    obterTurmasPermitidas(user.email).then((turmas) => {
-      turmasPermitidas = turmas;
-      carregarTurmasEAlunos().then(() => {
+
+    obterTurmasPermitidas(user.email)
+      .then((turmas) => {
+        turmasPermitidas = turmas;
+        return carregarTurmasEAlunos();
+      })
+      .then(() => {
         // Se veio de um link "Ver pendentes na Revisão" (tela de Fotos),
         // já abre filtrado na turma certa
         const turmaDaUrl = new URLSearchParams(window.location.search).get("turma");
@@ -55,8 +69,14 @@ onAuthStateChanged(auth, (user) => {
           turmaFiltro.value = turmaDaUrl;
         }
         escutarPendentes();
+        carregamentoConcluido = true;
+      })
+      .catch((erro) => {
+        carregamentoConcluido = true;
+        console.error(erro);
+        revisaoSubtitle.textContent = "Não foi possível carregar.";
+        revisaoList.innerHTML = `<p class="empty-state">Erro ao carregar a Revisão: ${erro.message || erro}. Tente atualizar a página.</p>`;
       });
-    });
   }
 });
 
