@@ -6,7 +6,7 @@
 // consultar o Google Drive ao vivo, então é rápido pra qualquer um
 // que tenha acesso ao app (não exige autorização do Drive).
 
-import { auth, db } from "./firebase-config.js?v=20260728c";
+import { auth, db } from "./firebase-config.js?v=20260728d";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -17,15 +17,15 @@ import {
   getDoc,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728c";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728d";
 import {
   garantirTokenAcesso,
   obterOuCriarPasta,
   compartilharComEmail,
   listarAcessosPorEmail,
   removerCompartilhamento
-} from "./drive-upload.js?v=20260728c";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260728c";
+} from "./drive-upload.js?v=20260728d";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260728d";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -110,15 +110,29 @@ galeriaTurmaSelect.addEventListener("change", async () => {
   }
 
   galeriaGrid.innerHTML = `<p class="empty-state">Carregando...</p>`;
-  const snapshot = await getDocs(query(collection(db, "fotos"), where("turma", "==", turmaAtual)));
-  fotosDaTurma = [];
-  snapshot.forEach((docSnap) => {
-    const dados = docSnap.data();
-    if (dados.pendente || !dados.alunoId) return; // só fotos já identificadas
-    fotosDaTurma.push({ id: docSnap.id, ...dados });
-  });
 
-  renderizarAlunos();
+  let concluido = false;
+  setTimeout(() => {
+    if (!concluido) {
+      galeriaGrid.innerHTML = `<p class="empty-state">Isso está demorando demais (pode ter bastante foto pra carregar) - verifique sua conexão e aguarde mais um pouco, ou tente atualizar a página.</p>`;
+    }
+  }, 10000);
+
+  try {
+    const snapshot = await getDocs(query(collection(db, "fotos"), where("turma", "==", turmaAtual)));
+    fotosDaTurma = [];
+    snapshot.forEach((docSnap) => {
+      const dados = docSnap.data();
+      if (dados.pendente || !dados.alunoId) return; // só fotos já identificadas
+      fotosDaTurma.push({ id: docSnap.id, ...dados });
+    });
+    concluido = true;
+    renderizarAlunos();
+  } catch (erro) {
+    concluido = true;
+    console.error(erro);
+    galeriaGrid.innerHTML = `<p class="empty-state">Erro ao carregar as fotos: ${erro.message || erro}. Tente atualizar a página.</p>`;
+  }
 });
 
 // ---------- Breadcrumb ----------
