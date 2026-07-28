@@ -4,7 +4,7 @@
 // Mostra uma faixa de aviso no topo da página (qualquer uma, exceto
 // a própria Revisão) quando existem fotos aguardando identificação.
 
-import { db } from "./firebase-config.js?v=20260727q";
+import { db } from "./firebase-config.js?v=20260727r";
 import {
   collection,
   query,
@@ -13,6 +13,10 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 export async function mostrarAlertaPendentes(turmasPermitidas) {
+  // Remove um banner anterior, se já existir (evita duplicar quando
+  // chamado de novo depois de salvar fotos, sem recarregar a página)
+  document.querySelectorAll(".alerta-pendentes-banner").forEach((el) => el.remove());
+
   // Já está na tela de Revisão, ou não tem nenhuma turma liberada: não mostra nada
   if (window.location.pathname.endsWith("revisao.html")) return;
   if (turmasPermitidas !== null && turmasPermitidas.length === 0) return;

@@ -5,7 +5,7 @@
 // direto no navegador do professor - nenhuma foto sai
 // do dispositivo até o momento de salvar.
 
-import { auth, db } from "./firebase-config.js?v=20260727q";
+import { auth, db } from "./firebase-config.js?v=20260727r";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -15,10 +15,10 @@ import {
   addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727q";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727q";
-import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727q";
-import { aprenderComFoto } from "./aprendizado.js?v=20260727q";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260727r";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260727r";
+import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260727r";
+import { aprenderComFoto } from "./aprendizado.js?v=20260727r";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")
@@ -734,6 +734,10 @@ saveButton.addEventListener("click", async () => {
     }
     saveReviewLink.href = `revisao.html?turma=${encodeURIComponent(turma)}`;
     saveReviewLink.style.display = "block";
+
+    // Atualiza a faixa de alerta do topo na hora (senão só atualizaria
+    // se a página fosse recarregada)
+    mostrarAlertaPendentes(turmasPermitidas);
 
     resultsCard.hidden = true;
     fotosInput.value = "";

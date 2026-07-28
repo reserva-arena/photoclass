@@ -5,7 +5,7 @@
 // automaticamente e define quais turmas ela pode acessar - tudo
 // direto pelo app, sem precisar abrir o Firebase Console.
 
-import { auth, db, firebaseConfig } from "./firebase-config.js?v=20260727q";
+import { auth, db, firebaseConfig } from "./firebase-config.js?v=20260727r";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
   onAuthStateChanged,
@@ -27,9 +27,9 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260727q";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260727q";
-import { aprenderComFoto } from "./aprendizado.js?v=20260727q";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260727r";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260727r";
+import { aprenderComFoto } from "./aprendizado.js?v=20260727r";
 
 // Instância secundária do Firebase, só pra criar o login da professora
 // sem afetar a sessão do admin logado no app principal
