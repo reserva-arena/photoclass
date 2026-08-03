@@ -5,7 +5,7 @@
 // direto no navegador do professor - nenhuma foto sai
 // do dispositivo até o momento de salvar.
 
-import { auth, db } from "./firebase-config.js?v=20260728h";
+import { auth, db } from "./firebase-config.js?v=20260728i";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -16,10 +16,10 @@ import {
   addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728h";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260728h";
-import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260728h";
-import { aprenderComFoto } from "./aprendizado.js?v=20260728h";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728i";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260728i";
+import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260728i";
+import { aprenderComFoto } from "./aprendizado.js?v=20260728i";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")
@@ -137,14 +137,20 @@ turmaSelect.addEventListener("change", async () => {
 
   // Busca as fotos de referência (documento separado, mais pesado) em
   // lote pra esses alunos - só nessa tela, que é onde de fato precisa
-  // pra reconhecer rostos
+  // pra reconhecer rostos. Se der erro (ex: regra do Firestore ainda
+  // não atualizada), não trava a tela - cai no plano B (fotos antigas
+  // guardadas direto no documento do aluno, se existirem).
   const idsAlunos = snapshot.docs.map((d) => d.id);
   const referenciaPorAluno = new Map();
-  for (let i = 0; i < idsAlunos.length; i += 30) {
-    const bloco = idsAlunos.slice(i, i + 30);
-    if (bloco.length === 0) continue;
-    const refSnapshot = await getDocs(query(collection(db, "alunos_referencia"), where(documentId(), "in", bloco)));
-    refSnapshot.forEach((docSnap) => referenciaPorAluno.set(docSnap.id, docSnap.data()));
+  try {
+    for (let i = 0; i < idsAlunos.length; i += 30) {
+      const bloco = idsAlunos.slice(i, i + 30);
+      if (bloco.length === 0) continue;
+      const refSnapshot = await getDocs(query(collection(db, "alunos_referencia"), where(documentId(), "in", bloco)));
+      refSnapshot.forEach((docSnap) => referenciaPorAluno.set(docSnap.id, docSnap.data()));
+    }
+  } catch (erro) {
+    console.error("Erro ao buscar fotos de referência (alunos_referencia) - usando fotos antigas do documento do aluno, se houver:", erro);
   }
 
   alunosDaTurma = [];
