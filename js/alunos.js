@@ -9,7 +9,7 @@
 // rostos). O documento principal "alunos/{id}" guarda só o essencial
 // + uma capa pequena, pra listar rápido sempre.
 
-import { auth, db } from "./firebase-config.js?v=20260728n";
+import { auth, db } from "./firebase-config.js?v=20260728o";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -25,9 +25,9 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728n";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260728n";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260728n";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728o";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260728o";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260728o";
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");
@@ -91,6 +91,17 @@ let fotosEmEdicao = [null, null, null]; // fotos atuais do aluno em edição, um
 const alunosCache = new Map(); // id -> dados do aluno, pra reaproveitar ao entrar em edição
 
 // ---------- Proteção da página ----------
+let carregamentoConcluido = false;
+
+// Se em 10s ainda não carregou nem deu erro (rede muito lenta/travada),
+// avisa em vez de deixar "Carregando..." pra sempre
+setTimeout(() => {
+  if (!carregamentoConcluido) {
+    studentsCount.textContent = "Demorando mais que o esperado...";
+    studentsList.innerHTML = `<p class="empty-state">Isso está demorando demais - verifique sua conexão e tente atualizar a página.</p>`;
+  }
+}, 10000);
+
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     window.location.href = "index.html";
@@ -100,12 +111,20 @@ onAuthStateChanged(auth, (user) => {
     configurarAlternadorVisao(user.email);
     configurarMenuMobile();
     configurarNavProfessores(user.email);
-    obterTurmasPermitidas(user.email).then((turmas) => {
-      turmasPermitidas = turmas;
-      preencherTurmas();
-      carregarAlunos();
-      mostrarAlertaPendentes(turmas);
-    });
+    obterTurmasPermitidas(user.email)
+      .then((turmas) => {
+        turmasPermitidas = turmas;
+        preencherTurmas();
+        carregarAlunos();
+        mostrarAlertaPendentes(turmas);
+        carregamentoConcluido = true;
+      })
+      .catch((erro) => {
+        carregamentoConcluido = true;
+        console.error(erro);
+        studentsCount.textContent = "Não foi possível carregar.";
+        studentsList.innerHTML = `<p class="empty-state">Erro ao carregar: ${erro.message || erro}. Tente atualizar a página.</p>`;
+      });
   }
 });
 
