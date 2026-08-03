@@ -5,7 +5,7 @@
 // automaticamente e define quais turmas ela pode acessar - tudo
 // direto pelo app, sem precisar abrir o Firebase Console.
 
-import { auth, db, firebaseConfig } from "./firebase-config.js?v=20260728l";
+import { auth, db, firebaseConfig } from "./firebase-config.js?v=20260728m";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
   onAuthStateChanged,
@@ -27,11 +27,11 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260728l";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260728l";
-import { aprenderComFoto } from "./aprendizado.js?v=20260728l";
-import { garantirTokenAcesso, obterOuCriarPasta, excluirPasta, definirEmailUsuario } from "./drive-upload.js?v=20260728l";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260728l";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260728m";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260728m";
+import { aprenderComFoto } from "./aprendizado.js?v=20260728m";
+import { garantirTokenAcesso, obterOuCriarPasta, excluirPasta, definirEmailUsuario } from "./drive-upload.js?v=20260728m";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260728m";
 
 // Instância secundária do Firebase, só pra criar o login da professora
 // sem afetar a sessão do admin logado no app principal
