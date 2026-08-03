@@ -2,7 +2,7 @@
 // PhotoClass - Autenticação (tela de login)
 // ============================================
 
-import { auth } from "./firebase-config.js?v=20260728i";
+import { auth } from "./firebase-config.js?v=20260728j";
 import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,

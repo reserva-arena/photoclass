@@ -5,7 +5,7 @@
 // automaticamente e define quais turmas ela pode acessar - tudo
 // direto pelo app, sem precisar abrir o Firebase Console.
 
-import { auth, db, firebaseConfig } from "./firebase-config.js?v=20260728i";
+import { auth, db, firebaseConfig } from "./firebase-config.js?v=20260728j";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
   onAuthStateChanged,
@@ -27,9 +27,11 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260728i";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260728i";
-import { aprenderComFoto } from "./aprendizado.js?v=20260728i";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260728j";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260728j";
+import { aprenderComFoto } from "./aprendizado.js?v=20260728j";
+import { garantirTokenAcesso, obterOuCriarPasta, excluirPasta, definirEmailUsuario } from "./drive-upload.js?v=20260728j";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260728j";
 
 // Instância secundária do Firebase, só pra criar o login da professora
 // sem afetar a sessão do admin logado no app principal
@@ -74,10 +76,12 @@ onAuthStateChanged(auth, (user) => {
   }
 
   userEmailLabel.textContent = user.email;
+  definirEmailUsuario(user.email);
   configurarAlternadorVisao(user.email);
   configurarMenuMobile();
   configurarNavProfessores(user.email);
   preencherChecklistTurmas();
+  preencherSelectLimparTurma();
   carregarProfessores();
 });
 
@@ -371,5 +375,86 @@ aprendizadoBotao.addEventListener("click", async () => {
     aprendizadoStatus.textContent = `Erro: ${erro.message || erro}`;
   } finally {
     aprendizadoBotao.disabled = false;
+  }
+});
+
+// ---------- Limpar turma de teste ----------
+// Apaga TUDO de uma turma: alunos, fotos de referência, fotos enviadas
+// (Firestore) e a pasta inteira dela no Google Drive. Não dá pra
+// desfazer - usado só pra limpar dados de teste antes de começar a
+// usar de verdade com uma turma.
+function preencherSelectLimparTurma() {
+  const select = document.getElementById("limpar-turma-select");
+  const segmentos = [...new Set(TURMAS.map((t) => t.segmento))];
+  segmentos.forEach((segmento) => {
+    const grupo = document.createElement("optgroup");
+    grupo.label = NOMES_SEGMENTO[segmento] || segmento;
+    TURMAS.filter((t) => t.segmento === segmento).forEach((turma) => {
+      const option = document.createElement("option");
+      option.value = turma.nome;
+      option.textContent = turma.nome;
+      grupo.appendChild(option);
+    });
+    select.appendChild(grupo);
+  });
+}
+
+const limparTurmaSelect = document.getElementById("limpar-turma-select");
+const limparTurmaBotao = document.getElementById("limpar-turma-button");
+const limparTurmaStatus = document.getElementById("limpar-turma-status");
+
+limparTurmaBotao.addEventListener("click", async () => {
+  const turma = limparTurmaSelect.value;
+  if (!turma) {
+    alert("Selecione uma turma primeiro.");
+    return;
+  }
+
+  const confirmacao = prompt(
+    `Isso vai APAGAR PRA SEMPRE todos os alunos, fotos e a pasta do Drive da turma "${turma}".\n\nPra confirmar, digite o nome da turma exatamente: ${turma}`
+  );
+  if (confirmacao !== turma) {
+    alert("Cancelado (o texto digitado não bateu com o nome da turma).");
+    return;
+  }
+
+  limparTurmaBotao.disabled = true;
+
+  try {
+    // 1. Apaga a pasta inteira da turma no Drive (leva junto tudo que
+    // tem dentro - alunos, atividades, fotos)
+    limparTurmaStatus.textContent = "Conectando ao Drive...";
+    const accessToken = await garantirTokenAcesso();
+    const pastaTurmaId = await obterOuCriarPasta(turma, DRIVE_CONFIG.pastaRaizId, accessToken);
+    limparTurmaStatus.textContent = "Apagando pasta no Drive...";
+    await excluirPasta(pastaTurmaId, accessToken);
+
+    // 2. Apaga os documentos de "fotos" dessa turma no Firestore
+    limparTurmaStatus.textContent = "Apagando fotos no banco de dados...";
+    const fotosSnap = await getDocs(query(collection(db, "fotos"), where("turma", "==", turma)));
+    let apagadas = 0;
+    for (const docSnap of fotosSnap.docs) {
+      await deleteDoc(docSnap.ref);
+      apagadas++;
+      limparTurmaStatus.textContent = `Apagando fotos no banco de dados... (${apagadas}/${fotosSnap.size})`;
+    }
+
+    // 3. Apaga os alunos dessa turma (documento principal + referência)
+    limparTurmaStatus.textContent = "Apagando alunos...";
+    const alunosSnap = await getDocs(query(collection(db, "alunos"), where("turma", "==", turma)));
+    let alunosApagados = 0;
+    for (const docSnap of alunosSnap.docs) {
+      await deleteDoc(docSnap.ref);
+      await deleteDoc(doc(db, "alunos_referencia", docSnap.id)).catch(() => {});
+      alunosApagados++;
+    }
+
+    limparTurmaStatus.textContent = `✅ Turma "${turma}" limpa! ${alunosApagados} aluno(s) e ${apagadas} foto(s) removidos, pasta do Drive apagada.`;
+    limparTurmaSelect.value = "";
+  } catch (erro) {
+    console.error(erro);
+    limparTurmaStatus.textContent = `Erro: ${erro.message || erro}`;
+  } finally {
+    limparTurmaBotao.disabled = false;
   }
 });

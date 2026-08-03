@@ -7,7 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20260728i">
+  <link rel="stylesheet" href="css/style.css?v=20260728j">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -77,11 +78,23 @@
 
       <button id="aprendizado-retroativo-button" class="btn-ghost">🧠 Rodar aprendizado retroativo</button>
       <p id="aprendizado-retroativo-status" class="card-subtitle" style="margin-top: 10px;"></p>
+
+      <hr style="margin: 20px 0; border: none; border-top: 1px solid var(--color-border);">
+
+      <p class="card-subtitle" style="color: var(--color-red); font-weight: 600;">⚠️ Zona de risco: apaga alunos, fotos e pastas do Drive de uma turma inteira. Não dá pra desfazer.</p>
+      <div class="field">
+        <label for="limpar-turma-select">Limpar turma de teste</label>
+        <select id="limpar-turma-select">
+          <option value="">Selecione a turma pra limpar</option>
+        </select>
+      </div>
+      <button id="limpar-turma-button" class="btn-ghost" style="border-color: var(--color-red); color: var(--color-red);">🗑️ Limpar turma selecionada</button>
+      <p id="limpar-turma-status" class="card-subtitle" style="margin-top: 10px;"></p>
     </section>
 
   </main>
 
-  <script type="module" src="js/professores.js?v=20260728i"></script>
+  <script type="module" src="js/professores.js?v=20260728j"></script>
   <footer class="app-footer">
     <strong>PhotoClass</strong> · Dev: Luciano Galdino · Frontend: HTML, CSS, JS · Hospedagem: GitHub Pages · Backend: Firebase + Google Drive
   </footer>

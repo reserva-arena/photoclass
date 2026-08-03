@@ -9,7 +9,7 @@
 // à professora logada - a janela de consentimento do Google aparece
 // só na primeira vez (ou quando o token expira, ~1h).
 
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260728i";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260728j";
 
 const PASTA_MIME = "application/vnd.google-apps.folder";
 
@@ -281,6 +281,18 @@ export async function listarAcessosPorEmail(pastaId, accessToken) {
   if (!resposta.ok) throw new Error(`Erro ao listar acessos: ${await mensagemDeErroGoogle(resposta)}`);
   const dados = await resposta.json();
   return (dados.permissions || []).filter((p) => p.type === "user" && p.role === "reader");
+}
+
+// Exclui uma pasta inteira do Drive (e tudo que tem dentro dela) -
+// usado pra limpar uma turma de teste de uma vez
+export async function excluirPasta(pastaId, accessToken) {
+  const resposta = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${pastaId}?supportsAllDrives=true`,
+    { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!resposta.ok && resposta.status !== 404) {
+    throw new Error(`Erro ao excluir a pasta no Drive: ${await mensagemDeErroGoogle(resposta)}`);
+  }
 }
 
 // ---------- Compartilhamento (link pros pais) ----------
