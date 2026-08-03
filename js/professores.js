@@ -5,7 +5,7 @@
 // automaticamente e define quais turmas ela pode acessar - tudo
 // direto pelo app, sem precisar abrir o Firebase Console.
 
-import { auth, db, firebaseConfig } from "./firebase-config.js?v=20260728m";
+import { auth, db, firebaseConfig } from "./firebase-config.js?v=20260728n";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
   onAuthStateChanged,
@@ -27,11 +27,11 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260728m";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260728m";
-import { aprenderComFoto } from "./aprendizado.js?v=20260728m";
-import { garantirTokenAcesso, obterOuCriarPasta, excluirPasta, definirEmailUsuario } from "./drive-upload.js?v=20260728m";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260728m";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260728n";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260728n";
+import { aprenderComFoto } from "./aprendizado.js?v=20260728n";
+import { garantirTokenAcesso, obterOuCriarPasta, excluirPasta, adicionarMembroDriveCompartilhado, definirEmailUsuario } from "./drive-upload.js?v=20260728n";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260728n";
 
 // Instância secundária do Firebase, só pra criar o login da professora
 // sem afetar a sessão do admin logado no app principal
@@ -221,6 +221,18 @@ form.addEventListener("submit", async (event) => {
       { merge: true }
     );
 
+    // Dá acesso ao Drive Compartilhado também - sem isso, ela consegue
+    // entrar no app mas não consegue subir fotos de verdade
+    let driveOk = true;
+    try {
+      submitButtonText.textContent = "Liberando acesso ao Drive...";
+      const accessToken = await garantirTokenAcesso();
+      await adicionarMembroDriveCompartilhado(DRIVE_CONFIG.pastaRaizId, email, accessToken);
+    } catch (erroDrive) {
+      console.error("Erro ao dar acesso ao Drive Compartilhado:", erroDrive);
+      driveOk = false;
+    }
+
     // Manda o e-mail de acesso automaticamente pra quem acabou de ser criada
     if (loginCriadoAgora) {
       try {
@@ -230,11 +242,17 @@ form.addEventListener("submit", async (event) => {
       }
     }
 
-    mostrarSucesso(
-      loginCriadoAgora
-        ? `Login criado e turmas liberadas pra ${email}! Ela já recebeu o e-mail pra criar a senha.`
-        : `Turmas de ${email} salvas com sucesso!`
-    );
+    if (!driveOk) {
+      mostrarErro(
+        `Turmas salvas e login pronto, mas não consegui liberar o acesso ao Drive Compartilhado automaticamente. Adicione ${email} manualmente lá (Google Drive → Fotos alunos → Gerenciar membros → Gerenciador de conteúdo).`
+      );
+    } else {
+      mostrarSucesso(
+        loginCriadoAgora
+          ? `Tudo pronto! Login criado, turmas liberadas e acesso ao Drive concedido pra ${email}. Ela já recebeu o e-mail pra criar a senha.`
+          : `Turmas e acesso ao Drive de ${email} atualizados com sucesso!`
+      );
+    }
     sairModoEdicao();
   } catch (erro) {
     console.error(erro);

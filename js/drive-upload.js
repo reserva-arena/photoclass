@@ -9,7 +9,7 @@
 // à professora logada - a janela de consentimento do Google aparece
 // só na primeira vez (ou quando o token expira, ~1h).
 
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260728m";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260728n";
 
 const PASTA_MIME = "application/vnd.google-apps.folder";
 
@@ -292,6 +292,31 @@ export async function excluirPasta(pastaId, accessToken) {
   );
   if (!resposta.ok && resposta.status !== 404) {
     throw new Error(`Erro ao excluir a pasta no Drive: ${await mensagemDeErroGoogle(resposta)}`);
+  }
+}
+
+// Adiciona alguém como membro de um Drive Compartilhado (não uma
+// pasta comum) - necessário pra professora conseguir subir fotos por
+// lá, além do acesso ao próprio app. "fileOrganizer" = Gerenciador de
+// conteúdo (o papel certo pra criar/editar arquivos, mas sem poder
+// excluir o Drive Compartilhado em si nem mexer nos membros).
+export async function adicionarMembroDriveCompartilhado(driveId, email, accessToken) {
+  const resposta = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${driveId}/permissions?supportsAllDrives=true&sendNotificationEmail=false`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ role: "fileOrganizer", type: "user", emailAddress: email })
+    }
+  );
+  if (!resposta.ok) {
+    const dados = await resposta.json().catch(() => null);
+    // Já é membro? Não é um erro de verdade, apenas ignora
+    if (dados?.error?.message?.toLowerCase().includes("already")) return;
+    throw new Error(`Erro ao dar acesso ao Drive Compartilhado: ${dados?.error?.message || resposta.status}`);
   }
 }
 
