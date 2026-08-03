@@ -1095,6 +1095,68 @@ select {
   color: var(--color-teal) !important;
 }
 
+/* ---------- Guia de uso ---------- */
+
+.guia-bloco {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.guia-texto {
+  flex: 1 1 320px;
+  min-width: 260px;
+}
+
+.guia-imagem {
+  flex: 0 1 220px;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.guia-imagem img {
+  width: 100%;
+  max-width: 220px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 10px 24px -14px rgba(26, 107, 71, 0.35);
+  cursor: zoom-in;
+}
+
+.guia-legenda {
+  font-size: 12px;
+  color: var(--color-navy-light);
+  font-style: italic;
+  margin-top: 10px;
+}
+
+.guia-passos {
+  margin: 0 0 14px;
+  padding-left: 22px;
+}
+
+.guia-passos li {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.guia-passos li::marker {
+  color: var(--color-teal);
+  font-weight: 700;
+}
+
+@media (max-width: 680px) {
+  .guia-bloco {
+    flex-direction: column;
+  }
+  .guia-imagem {
+    order: -1;
+    max-width: 240px;
+  }
+}
+
 /* ---------- Rodapé ---------- */
 
 .app-footer {

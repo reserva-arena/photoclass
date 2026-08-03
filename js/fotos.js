@@ -5,7 +5,7 @@
 // direto no navegador do professor - nenhuma foto sai
 // do dispositivo até o momento de salvar.
 
-import { auth, db } from "./firebase-config.js?v=20260728j";
+import { auth, db } from "./firebase-config.js?v=20260728k";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -16,10 +16,10 @@ import {
   addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728j";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260728j";
-import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260728j";
-import { aprenderComFoto } from "./aprendizado.js?v=20260728j";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728k";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260728k";
+import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260728k";
+import { aprenderComFoto } from "./aprendizado.js?v=20260728k";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")

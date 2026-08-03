@@ -5,7 +5,7 @@
 // a nenhum aluno automaticamente aparecem aqui, pra professora
 // resolver manualmente sem precisar subir tudo de novo.
 
-import { auth, db } from "./firebase-config.js?v=20260728j";
+import { auth, db } from "./firebase-config.js?v=20260728k";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -19,10 +19,10 @@ import {
   getDocs,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728j";
-import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, copiarArquivo, excluirArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260728j";
-import { aprenderComFoto } from "./aprendizado.js?v=20260728j";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260728j";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728k";
+import { garantirTokenAcesso, obterOuCriarPasta, moverArquivo, copiarArquivo, excluirArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260728k";
+import { aprenderComFoto } from "./aprendizado.js?v=20260728k";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260728k";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
