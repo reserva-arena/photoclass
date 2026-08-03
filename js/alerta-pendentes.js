@@ -4,7 +4,7 @@
 // Mostra uma faixa de aviso no topo da página (qualquer uma, exceto
 // a própria Revisão) quando existem fotos aguardando identificação.
 
-import { db } from "./firebase-config.js?v=20260728k";
+import { db } from "./firebase-config.js?v=20260728l";
 import {
   collection,
   query,
