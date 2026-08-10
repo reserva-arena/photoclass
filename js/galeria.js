@@ -6,7 +6,7 @@
 // consultar o Google Drive ao vivo, então é rápido pra qualquer um
 // que tenha acesso ao app (não exige autorização do Drive).
 
-import { auth, db } from "./firebase-config.js?v=20260804a";
+import { auth, db } from "./firebase-config.js?v=20260804b";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -20,15 +20,15 @@ import {
   getDoc,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260804a";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260804b";
 import {
   garantirTokenAcesso,
   obterOuCriarPasta,
   compartilharComEmail,
   listarAcessosPorEmail,
   removerCompartilhamento
-} from "./drive-upload.js?v=20260804a";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260804a";
+} from "./drive-upload.js?v=20260804b";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260804b";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -42,7 +42,7 @@ const galeriaVazio = document.getElementById("galeria-vazio");
 const galeriaGrid = document.getElementById("galeria-grid");
 
 let turmasPermitidas = null;
-let modoGaleria = "aluno"; // "aluno" ou "atividade"
+let modoGaleria = "atividade"; // "aluno" ou "atividade" - abre em "atividade" por padrão (mais usado logo após subir fotos)
 let alunosDaTurma = []; // [{id, nome, foto}] - leve, vem do cadastro, não das fotos
 let fotosDoAlunoAtual = []; // só as fotos do aluno que está aberto agora (vai crescendo conforme pagina)
 let ultimoDocPaginacao = null; // cursor pra buscar a próxima leva de fotos mais antigas (modo aluno)
