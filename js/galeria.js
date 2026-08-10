@@ -6,7 +6,7 @@
 // consultar o Google Drive ao vivo, então é rápido pra qualquer um
 // que tenha acesso ao app (não exige autorização do Drive).
 
-import { auth, db } from "./firebase-config.js?v=20260728o";
+import { auth, db } from "./firebase-config.js?v=20260804a";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -20,15 +20,15 @@ import {
   getDoc,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260728o";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260804a";
 import {
   garantirTokenAcesso,
   obterOuCriarPasta,
   compartilharComEmail,
   listarAcessosPorEmail,
   removerCompartilhamento
-} from "./drive-upload.js?v=20260728o";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260728o";
+} from "./drive-upload.js?v=20260804a";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260804a";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -37,15 +37,23 @@ const galeriaBreadcrumb = document.getElementById("galeria-breadcrumb");
 const galeriaCompartilhar = document.getElementById("galeria-compartilhar");
 const galeriaTurmaField = document.getElementById("galeria-turma-field");
 const galeriaTurmaSelect = document.getElementById("galeria-turma-select");
+const galeriaModoField = document.getElementById("galeria-modo-field");
 const galeriaVazio = document.getElementById("galeria-vazio");
 const galeriaGrid = document.getElementById("galeria-grid");
 
 let turmasPermitidas = null;
+let modoGaleria = "aluno"; // "aluno" ou "atividade"
 let alunosDaTurma = []; // [{id, nome, foto}] - leve, vem do cadastro, não das fotos
 let fotosDoAlunoAtual = []; // só as fotos do aluno que está aberto agora (vai crescendo conforme pagina)
-let ultimoDocPaginacao = null; // cursor pra buscar a próxima leva de fotos mais antigas
+let ultimoDocPaginacao = null; // cursor pra buscar a próxima leva de fotos mais antigas (modo aluno)
 let semMaisFotosAntigas = false; // true = já buscou tudo desse aluno
 let indiceQueryFallback = false; // true = Firestore ainda não tem o índice, usando busca sem paginação
+
+let fotosPorTurmaAtual = []; // fotos da turma inteira, usado no modo "por atividade"
+let ultimoDocPaginacaoTurma = null;
+let semMaisAtividadesAntigas = false;
+let indiceQueryFallbackTurma = false;
+
 let turmaAtual = null;
 let alunoAtual = null; // { id, nome }
 let atividadeAtual = null; // string
@@ -113,9 +121,11 @@ galeriaTurmaSelect.addEventListener("change", async () => {
   if (!turmaAtual) {
     galeriaGrid.innerHTML = "";
     galeriaBreadcrumb.hidden = true;
+    galeriaModoField.hidden = true;
     return;
   }
 
+  galeriaModoField.hidden = false;
   galeriaGrid.innerHTML = `<p class="empty-state">Carregando...</p>`;
 
   let concluido = false;
@@ -138,7 +148,11 @@ galeriaTurmaSelect.addEventListener("change", async () => {
       alunosDaTurma.push({ id: docSnap.id, nome: dados.nome, foto });
     });
     concluido = true;
-    renderizarAlunos();
+    if (modoGaleria === "aluno") {
+      renderizarAlunos();
+    } else {
+      abrirModoAtividade();
+    }
   } catch (erro) {
     concluido = true;
     console.error(erro);
@@ -146,12 +160,40 @@ galeriaTurmaSelect.addEventListener("change", async () => {
   }
 });
 
+// ---------- Toggle Por Aluno / Por Atividade ----------
+document.querySelectorAll(".galeria-modo-btn").forEach((botao) => {
+  botao.addEventListener("click", () => {
+    const modo = botao.getAttribute("data-modo");
+    if (modo === modoGaleria) return;
+    modoGaleria = modo;
+
+    document.querySelectorAll(".galeria-modo-btn").forEach((b) => {
+      b.classList.toggle("galeria-modo-btn--ativo", b.getAttribute("data-modo") === modo);
+    });
+
+    alunoAtual = null;
+    atividadeAtual = null;
+
+    if (modo === "aluno") {
+      renderizarAlunos();
+    } else {
+      abrirModoAtividade();
+    }
+  });
+});
+
 // ---------- Breadcrumb ----------
 function renderizarBreadcrumb() {
   const partes = [];
   partes.push(`<button data-nivel="turma">${turmaAtual}</button>`);
-  if (alunoAtual) partes.push(`<span class="galeria-separador">›</span><button data-nivel="aluno">${alunoAtual.nome}</button>`);
-  if (atividadeAtual) partes.push(`<span class="galeria-separador">›</span><span class="galeria-atual">${atividadeAtual}</span>`);
+
+  if (modoGaleria === "aluno") {
+    if (alunoAtual) partes.push(`<span class="galeria-separador">›</span><button data-nivel="aluno">${alunoAtual.nome}</button>`);
+    if (atividadeAtual) partes.push(`<span class="galeria-separador">›</span><span class="galeria-atual">${atividadeAtual}</span>`);
+  } else {
+    partes.push(`<span class="galeria-separador">›</span><span class="galeria-atual">📅 Por Atividade</span>`);
+    if (atividadeAtual) partes.push(`<span class="galeria-separador">›</span><span class="galeria-atual">${atividadeAtual}</span>`);
+  }
 
   galeriaBreadcrumb.innerHTML = partes.join(" ");
   galeriaBreadcrumb.hidden = false;
@@ -162,7 +204,8 @@ function renderizarBreadcrumb() {
       if (nivel === "turma") {
         alunoAtual = null;
         atividadeAtual = null;
-        renderizarAlunos();
+        if (modoGaleria === "aluno") renderizarAlunos();
+        else abrirModoAtividade();
       } else if (nivel === "aluno") {
         atividadeAtual = null;
         renderizarAtividades();
@@ -356,6 +399,155 @@ function renderizarFotos() {
     `;
     grid.appendChild(wrapper);
   });
+}
+
+// ---------- Modo "Por Atividade" (nível 1: atividades da turma inteira) ----------
+async function abrirModoAtividade() {
+  alunoAtual = null;
+  atividadeAtual = null;
+  fotosPorTurmaAtual = [];
+  ultimoDocPaginacaoTurma = null;
+  semMaisAtividadesAntigas = false;
+  indiceQueryFallbackTurma = false;
+
+  galeriaBreadcrumb.hidden = true;
+  galeriaCompartilhar.hidden = true;
+  galeriaVazio.hidden = true;
+  galeriaGrid.innerHTML = `<p class="empty-state">Carregando atividades...</p>`;
+
+  try {
+    await buscarMaisAtividadesDaTurma();
+    renderizarAtividadesDaTurma();
+  } catch (erro) {
+    console.error(erro);
+    galeriaGrid.innerHTML = `<p class="empty-state">Erro ao carregar as atividades: ${erro.message || erro}.</p>`;
+  }
+}
+
+// Busca a próxima leva de fotos da turma inteira (todos os alunos
+// juntos), em levas pequenas - mesmo espírito da paginação por aluno
+async function buscarMaisAtividadesDaTurma() {
+  if (semMaisAtividadesAntigas) return;
+
+  const fotosRef = collection(db, "fotos");
+
+  try {
+    if (indiceQueryFallbackTurma) return;
+
+    const restricoes = [where("turma", "==", turmaAtual), orderBy("criadoEm", "desc")];
+    if (ultimoDocPaginacaoTurma) restricoes.push(startAfter(ultimoDocPaginacaoTurma));
+    restricoes.push(limit(TAMANHO_DA_LEVA));
+
+    const snapshot = await getDocs(query(fotosRef, ...restricoes));
+
+    snapshot.forEach((docSnap) => {
+      const dados = docSnap.data();
+      if (dados.pendente) return; // só fotos já identificadas
+      fotosPorTurmaAtual.push({ id: docSnap.id, ...dados });
+    });
+
+    if (snapshot.size > 0) ultimoDocPaginacaoTurma = snapshot.docs[snapshot.docs.length - 1];
+    semMaisAtividadesAntigas = snapshot.size < TAMANHO_DA_LEVA;
+  } catch (erroIndice) {
+    console.warn("Paginação por turma indisponível (índice do Firestore) - buscando tudo de uma vez:", erroIndice.message);
+    indiceQueryFallbackTurma = true;
+    semMaisAtividadesAntigas = true;
+
+    const snapshot = await getDocs(query(fotosRef, where("turma", "==", turmaAtual)));
+    fotosPorTurmaAtual = [];
+    snapshot.forEach((docSnap) => {
+      const dados = docSnap.data();
+      if (dados.pendente) return;
+      fotosPorTurmaAtual.push({ id: docSnap.id, ...dados });
+    });
+  }
+}
+
+function renderizarAtividadesDaTurma() {
+  renderizarBreadcrumb();
+
+  const porAtividade = new Map(); // atividade -> { fotos: [...], alunos: Set }
+  fotosPorTurmaAtual.forEach((foto) => {
+    const chave = foto.atividade || "Sem atividade";
+    if (!porAtividade.has(chave)) porAtividade.set(chave, { fotos: [], alunos: new Set() });
+    porAtividade.get(chave).fotos.push(foto);
+    if (foto.alunoNome) porAtividade.get(chave).alunos.add(foto.alunoNome);
+  });
+
+  const atividadesOrdenadas = [...porAtividade.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+
+  if (atividadesOrdenadas.length === 0) {
+    galeriaGrid.innerHTML = `<p class="empty-state">Nenhuma foto identificada ainda nessa turma.</p>`;
+    return;
+  }
+
+  galeriaGrid.innerHTML = "";
+  atividadesOrdenadas.forEach(([atividade, dados]) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "galeria-card";
+    card.innerHTML = `
+      <img src="${dados.fotos[0].foto}" alt="${atividade}" class="galeria-card-capa">
+      <div class="galeria-card-info">
+        <span class="galeria-card-nome">${atividade}</span>
+        <span class="galeria-card-contagem">${dados.fotos.length} foto(s) · ${dados.alunos.size} aluno(s)</span>
+      </div>
+    `;
+    card.addEventListener("click", () => abrirAtividadeDaTurma(atividade));
+    galeriaGrid.appendChild(card);
+  });
+
+  if (!semMaisAtividadesAntigas) {
+    const botaoMais = document.createElement("button");
+    botaoMais.type = "button";
+    botaoMais.className = "btn-ghost";
+    botaoMais.style.marginTop = "12px";
+    botaoMais.textContent = "Ver atividades mais antigas";
+    botaoMais.addEventListener("click", async () => {
+      botaoMais.disabled = true;
+      botaoMais.textContent = "Buscando...";
+      await buscarMaisAtividadesDaTurma();
+      renderizarAtividadesDaTurma();
+    });
+    galeriaGrid.appendChild(botaoMais);
+  }
+}
+
+// ---------- Modo "Por Atividade" (nível 2: todas as fotos daquela
+// atividade, de todos os alunos juntos) ----------
+async function abrirAtividadeDaTurma(atividade) {
+  atividadeAtual = atividade;
+  renderizarBreadcrumb();
+  galeriaGrid.innerHTML = `<p class="empty-state">Carregando fotos...</p>`;
+
+  try {
+    const snapshot = await getDocs(
+      query(collection(db, "fotos"), where("turma", "==", turmaAtual), where("atividade", "==", atividade))
+    );
+    const fotos = [];
+    snapshot.forEach((docSnap) => {
+      const dados = docSnap.data();
+      if (dados.pendente) return;
+      fotos.push({ id: docSnap.id, ...dados });
+    });
+
+    galeriaGrid.innerHTML = `<div class="galeria-grid" id="galeria-fotos-grid"></div>`;
+    const grid = document.getElementById("galeria-fotos-grid");
+
+    fotos.forEach((foto) => {
+      const wrapper = document.createElement("div");
+      wrapper.className = "galeria-foto-wrapper galeria-foto-com-nome";
+      wrapper.innerHTML = `
+        <img src="${foto.foto}" alt="Foto de ${foto.alunoNome || "aluno"}" class="js-abrir-foto-galeria">
+        <span class="galeria-foto-nome-tag">${foto.alunoNome || "?"}</span>
+        ${foto.driveViewLink ? `<a href="${foto.driveViewLink}" target="_blank" rel="noopener" class="galeria-foto-drive-link">Abrir no Drive</a>` : ""}
+      `;
+      grid.appendChild(wrapper);
+    });
+  } catch (erro) {
+    console.error(erro);
+    galeriaGrid.innerHTML = `<p class="empty-state">Erro ao carregar as fotos: ${erro.message || erro}.</p>`;
+  }
 }
 
 // ---------- Compartilhar pasta do aluno com os pais (por e-mail específico) ----------

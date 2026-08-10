@@ -705,6 +705,46 @@ a.stat-card:hover {
   margin-bottom: 14px;
 }
 
+.galeria-modo-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.galeria-modo-btn {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--color-navy-light);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.galeria-modo-btn--ativo {
+  background: var(--color-navy);
+  border-color: var(--color-navy);
+  color: var(--color-white);
+}
+
+.galeria-foto-com-nome {
+  position: relative;
+}
+
+.galeria-foto-nome-tag {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(26, 107, 71, 0.85);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
 .galeria-compartilhar {
   background: var(--color-bg);
   border: 1px solid var(--color-border);

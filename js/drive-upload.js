@@ -9,7 +9,7 @@
 // à professora logada - a janela de consentimento do Google aparece
 // só na primeira vez (ou quando o token expira, ~1h).
 
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260728o";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260804a";
 
 const PASTA_MIME = "application/vnd.google-apps.folder";
 
