@@ -9,8 +9,8 @@
 // à professora logada - a janela de consentimento do Google aparece
 // só na primeira vez (ou quando o token expira, ~1h).
 
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260804d";
-import { TURMAS } from "./turmas.js?v=20260804d";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260804e";
+import { TURMAS } from "./turmas.js?v=20260804e";
 
 const PASTA_MIME = "application/vnd.google-apps.folder";
 

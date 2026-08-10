@@ -9,15 +9,15 @@
 // enviada: Turma > Aluno > Atividade > foto.jpg
 // (ou Turma > "Não identificados" > Atividade > foto.jpg, se pendente)
 //
-// Dois "modelos" de acesso, por segmento (em transição - o objetivo é
-// deixar tudo em "pasta-comum"):
+// Dois "modelos" de acesso, por segmento (mantido no código pra caso
+// algum segmento novo precise do modelo antigo no futuro - hoje os
+// dois já estão no modelo novo):
 // - "pasta-comum": pasta normal dentro de "Meu Drive" da coordenação.
 //   Cada professora recebe permissão só na pasta da(s) turma(s) dela -
-//   ela NÃO vê as turmas de outras professoras. Modelo correto/final.
-// - "drive-compartilhado": Drive Compartilhado (jeito antigo). Nele,
-//   dar acesso a alguém é tudo ou nada - vira membro do Drive inteiro,
-//   enxergando todas as turmas. Mantido só até migrarmos esse
-//   segmento também pro modelo de pasta comum.
+//   ela NÃO vê as turmas de outras professoras. Modelo correto/atual.
+// - "drive-compartilhado": Drive Compartilhado (jeito antigo, não
+//   usado mais). Nele, dar acesso a alguém é tudo ou nada - vira
+//   membro do Drive inteiro, enxergando todas as turmas.
 
 export const DRIVE_CONFIG = {
   apiKey: "AIzaSyDDMk3gl0Zg0mbWR0P2BrM_D50Lb7BAeVU",
@@ -34,10 +34,8 @@ export const DRIVE_CONFIG = {
 
   segmentos: {
     anosIniciais: {
-      // TODO: migrar pra "pasta-comum" assim que a pasta "Fotos
-      // Infantil 2026" (dentro de drive.anosinicias@) estiver pronta
-      raizId: "0AICRXWG8AsvPUk9PVA", // Drive Compartilhado "Fotos alunos"
-      modelo: "drive-compartilhado"
+      raizId: "13VZ3o5_3F6FYFYhb-x9ikJ9JeKm4xpJ7", // pasta "Fotos Anos Iniciais 2026" (dentro de drive.anosinicias@)
+      modelo: "pasta-comum"
     },
     fundamental1: {
       raizId: "1MEHLJuStCYyH5yjqxhg-JCa4Ha80DJjy", // pasta "Fotos Fund.1 2026" (dentro de drive.fundamental1@)
@@ -47,5 +45,5 @@ export const DRIVE_CONFIG = {
 
   // Usado só se uma turma não tiver segmento reconhecido (não deve
   // acontecer, mas evita quebrar o upload nesse caso)
-  pastaRaizId: "0AICRXWG8AsvPUk9PVA"
+  pastaRaizId: "13VZ3o5_3F6FYFYhb-x9ikJ9JeKm4xpJ7"
 };
