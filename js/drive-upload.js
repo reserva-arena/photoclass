@@ -9,8 +9,8 @@
 // à professora logada - a janela de consentimento do Google aparece
 // só na primeira vez (ou quando o token expira, ~1h).
 
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260804c";
-import { TURMAS } from "./turmas.js?v=20260804c";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260804d";
+import { TURMAS } from "./turmas.js?v=20260804d";
 
 const PASTA_MIME = "application/vnd.google-apps.folder";
 
@@ -155,13 +155,20 @@ export async function obterOuCriarPasta(nome, paiId, accessToken) {
   return pastaId;
 }
 
-// Cada segmento (Educação Infantil, Fundamental 1...) pode ter seu
-// próprio Drive Compartilhado - essa função descobre qual usar a
-// partir do nome da turma
+// Cada segmento (Educação Infantil, Fundamental 1...) tem sua própria
+// pasta raiz - essa função descobre qual usar a partir do nome da turma
 export function obterPastaRaizDaTurma(turma) {
   const info = TURMAS.find((t) => t.nome === turma);
   const segmento = info?.segmento;
-  return DRIVE_CONFIG.pastasRaizPorSegmento?.[segmento] || DRIVE_CONFIG.pastaRaizId;
+  return DRIVE_CONFIG.segmentos?.[segmento]?.raizId || DRIVE_CONFIG.pastaRaizId;
+}
+
+// "pasta-comum" (modelo novo, correto) ou "drive-compartilhado" (modelo
+// antigo, em transição) - ver explicação em drive-config.js
+export function obterModeloDaTurma(turma) {
+  const info = TURMAS.find((t) => t.nome === turma);
+  const segmento = info?.segmento;
+  return DRIVE_CONFIG.segmentos?.[segmento]?.modelo || "drive-compartilhado";
 }
 
 // Monta (ou reaproveita) a pasta de destino de uma foto:
@@ -305,11 +312,37 @@ export async function excluirPasta(pastaId, accessToken) {
   }
 }
 
+// Dá acesso de Editor a alguém em UMA PASTA ESPECÍFICA (modelo novo,
+// "pasta-comum") - diferente do Drive Compartilhado, aqui a pessoa só
+// enxerga essa pasta (e o que tem dentro dela), nada mais na conta.
+// É assim que uma professora só vê a(s) turma(s) dela, não a escola toda.
+export async function concederAcessoEditorPasta(pastaId, email, accessToken) {
+  const resposta = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${pastaId}/permissions?supportsAllDrives=true&sendNotificationEmail=false`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ role: "writer", type: "user", emailAddress: email })
+    }
+  );
+  if (!resposta.ok) {
+    const dados = await resposta.json().catch(() => null);
+    if (dados?.error?.message?.toLowerCase().includes("already")) return;
+    throw new Error(`Erro ao dar acesso à pasta: ${dados?.error?.message || resposta.status}`);
+  }
+}
+
 // Adiciona alguém como membro de um Drive Compartilhado (não uma
 // pasta comum) - necessário pra professora conseguir subir fotos por
 // lá, além do acesso ao próprio app. "fileOrganizer" = Gerenciador de
 // conteúdo (o papel certo pra criar/editar arquivos, mas sem poder
 // excluir o Drive Compartilhado em si nem mexer nos membros).
+// ATENÇÃO: dá acesso ao Drive INTEIRO (todas as turmas dele), não só
+// uma - é o modelo antigo, mantido só até migrarmos esse segmento
+// pro modelo de pasta comum (ver drive-config.js).
 export async function adicionarMembroDriveCompartilhado(driveId, email, accessToken) {
   const resposta = await fetch(
     `https://www.googleapis.com/drive/v3/files/${driveId}/permissions?supportsAllDrives=true&sendNotificationEmail=false`,

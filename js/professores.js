@@ -5,7 +5,7 @@
 // automaticamente e define quais turmas ela pode acessar - tudo
 // direto pelo app, sem precisar abrir o Firebase Console.
 
-import { auth, db, firebaseConfig } from "./firebase-config.js?v=20260804c";
+import { auth, db, firebaseConfig } from "./firebase-config.js?v=20260804d";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
   onAuthStateChanged,
@@ -27,10 +27,10 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260804c";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260804c";
-import { aprenderComFoto } from "./aprendizado.js?v=20260804c";
-import { garantirTokenAcesso, obterOuCriarPasta, obterPastaRaizDaTurma, excluirPasta, adicionarMembroDriveCompartilhado, definirEmailUsuario } from "./drive-upload.js?v=20260804c";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260804d";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260804d";
+import { aprenderComFoto } from "./aprendizado.js?v=20260804d";
+import { garantirTokenAcesso, obterOuCriarPasta, obterPastaRaizDaTurma, obterModeloDaTurma, concederAcessoEditorPasta, excluirPasta, adicionarMembroDriveCompartilhado, definirEmailUsuario } from "./drive-upload.js?v=20260804d";
 
 // Instância secundária do Firebase, só pra criar o login da professora
 // sem afetar a sessão do admin logado no app principal
@@ -220,21 +220,32 @@ form.addEventListener("submit", async (event) => {
       { merge: true }
     );
 
-    // Dá acesso ao(s) Drive(s) Compartilhado(s) certo(s) também - sem
-    // isso, ela consegue entrar no app mas não consegue subir fotos de
-    // verdade. Se ela tiver turmas de mais de um segmento (raro, mas
-    // possível - ex: professora de Educação Física), ganha acesso a
-    // todos os Drives relevantes.
+    // Dá acesso ao Drive certo pra cada turma dela. No modelo novo
+    // ("pasta-comum"), o acesso é só na pasta daquela turma específica -
+    // ela não vê as outras turmas da mesma conta. No modelo antigo
+    // ("drive-compartilhado", ainda em uso só nos Anos Iniciais até
+    // migrarmos), o acesso é ao Drive inteiro (todas as turmas dele).
     let driveOk = true;
     try {
       submitButtonText.textContent = "Liberando acesso ao Drive...";
       const accessToken = await garantirTokenAcesso();
-      const pastasRaizUnicas = new Set(turmas.map((t) => obterPastaRaizDaTurma(t)));
-      for (const pastaRaizId of pastasRaizUnicas) {
-        await adicionarMembroDriveCompartilhado(pastaRaizId, email, accessToken);
+      const drivesCompartilhadosJaFeitos = new Set(); // evita repetir a mesma concessão de drive inteiro
+
+      for (const turma of turmas) {
+        const raizId = obterPastaRaizDaTurma(turma);
+        const modelo = obterModeloDaTurma(turma);
+
+        if (modelo === "pasta-comum") {
+          submitButtonText.textContent = `Liberando acesso a ${turma}...`;
+          const pastaTurma = await obterOuCriarPasta(turma, raizId, accessToken);
+          await concederAcessoEditorPasta(pastaTurma, email, accessToken);
+        } else if (!drivesCompartilhadosJaFeitos.has(raizId)) {
+          await adicionarMembroDriveCompartilhado(raizId, email, accessToken);
+          drivesCompartilhadosJaFeitos.add(raizId);
+        }
       }
     } catch (erroDrive) {
-      console.error("Erro ao dar acesso ao Drive Compartilhado:", erroDrive);
+      console.error("Erro ao dar acesso ao Drive:", erroDrive);
       driveOk = false;
     }
 
@@ -249,7 +260,7 @@ form.addEventListener("submit", async (event) => {
 
     if (!driveOk) {
       mostrarErro(
-        `Turmas salvas e login pronto, mas não consegui liberar o acesso ao Drive Compartilhado automaticamente. Adicione ${email} manualmente lá (Google Drive → Fotos alunos → Gerenciar membros → Gerenciador de conteúdo).`
+        `Turmas salvas e login pronto, mas não consegui liberar o acesso ao Drive automaticamente. Você pode compartilhar a pasta da turma manualmente com ${email} direto pelo Google Drive.`
       );
     } else {
       mostrarSucesso(

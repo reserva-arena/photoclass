@@ -4,10 +4,20 @@
 // Este arquivo guarda as informações de acesso ao Google Drive
 // onde as fotos dos alunos são armazenadas.
 //
-// Estrutura: um Drive Compartilhado por segmento (cada coordenação
-// cuida do seu). Dentro de cada um, o app cria automaticamente, pra
-// cada foto enviada: Turma > Aluno > Atividade > foto.jpg
+// Cada segmento tem sua própria pasta raiz (conta de coordenação
+// diferente). Dentro dela, o app cria automaticamente, pra cada foto
+// enviada: Turma > Aluno > Atividade > foto.jpg
 // (ou Turma > "Não identificados" > Atividade > foto.jpg, se pendente)
+//
+// Dois "modelos" de acesso, por segmento (em transição - o objetivo é
+// deixar tudo em "pasta-comum"):
+// - "pasta-comum": pasta normal dentro de "Meu Drive" da coordenação.
+//   Cada professora recebe permissão só na pasta da(s) turma(s) dela -
+//   ela NÃO vê as turmas de outras professoras. Modelo correto/final.
+// - "drive-compartilhado": Drive Compartilhado (jeito antigo). Nele,
+//   dar acesso a alguém é tudo ou nada - vira membro do Drive inteiro,
+//   enxergando todas as turmas. Mantido só até migrarmos esse
+//   segmento também pro modelo de pasta comum.
 
 export const DRIVE_CONFIG = {
   apiKey: "AIzaSyDDMk3gl0Zg0mbWR0P2BrM_D50Lb7BAeVU",
@@ -22,10 +32,17 @@ export const DRIVE_CONFIG = {
   // @colegioarena.com.br), então não precisa de verificação do Google.
   scope: "https://www.googleapis.com/auth/drive",
 
-  // Um Drive Compartilhado por segmento - cada coordenação tem o seu
-  pastasRaizPorSegmento: {
-    anosIniciais: "0AICRXWG8AsvPUk9PVA", // Drive "Fotos alunos" (Educação Infantil)
-    fundamental1: "0AGpsKU-WmOM5Uk9PVA" // Drive "Fotos Ativ. Fund.1 - 2026"
+  segmentos: {
+    anosIniciais: {
+      // TODO: migrar pra "pasta-comum" assim que a pasta "Fotos
+      // Infantil 2026" (dentro de drive.anosinicias@) estiver pronta
+      raizId: "0AICRXWG8AsvPUk9PVA", // Drive Compartilhado "Fotos alunos"
+      modelo: "drive-compartilhado"
+    },
+    fundamental1: {
+      raizId: "1MEHLJuStCYyH5yjqxhg-JCa4Ha80DJjy", // pasta "Fotos Fund.1 2026" (dentro de drive.fundamental1@)
+      modelo: "pasta-comum"
+    }
   },
 
   // Usado só se uma turma não tiver segmento reconhecido (não deve
