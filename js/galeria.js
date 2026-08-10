@@ -6,7 +6,7 @@
 // consultar o Google Drive ao vivo, então é rápido pra qualquer um
 // que tenha acesso ao app (não exige autorização do Drive).
 
-import { auth, db } from "./firebase-config.js?v=20260804b";
+import { auth, db } from "./firebase-config.js?v=20260804c";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -20,15 +20,15 @@ import {
   getDoc,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260804b";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260804c";
 import {
   garantirTokenAcesso,
   obterOuCriarPasta,
+  obterPastaRaizDaTurma,
   compartilharComEmail,
   listarAcessosPorEmail,
   removerCompartilhamento
-} from "./drive-upload.js?v=20260804b";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260804b";
+} from "./drive-upload.js?v=20260804c";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -582,7 +582,7 @@ async function renderizarCompartilhar() {
   async function garantirPastaEToken() {
     if (!accessTokenCache) accessTokenCache = await garantirTokenAcesso();
     if (!pastaAlunoId) {
-      const pastaTurma = await obterOuCriarPasta(turmaAtual, DRIVE_CONFIG.pastaRaizId, accessTokenCache);
+      const pastaTurma = await obterOuCriarPasta(turmaAtual, obterPastaRaizDaTurma(turmaAtual), accessTokenCache);
       pastaAlunoId = await obterOuCriarPasta(alunoAtual.nome, pastaTurma, accessTokenCache);
     }
     return { accessToken: accessTokenCache, pastaAluno: pastaAlunoId };

@@ -9,7 +9,8 @@
 // à professora logada - a janela de consentimento do Google aparece
 // só na primeira vez (ou quando o token expira, ~1h).
 
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260804b";
+import { DRIVE_CONFIG } from "./drive-config.js?v=20260804c";
+import { TURMAS } from "./turmas.js?v=20260804c";
 
 const PASTA_MIME = "application/vnd.google-apps.folder";
 
@@ -154,12 +155,21 @@ export async function obterOuCriarPasta(nome, paiId, accessToken) {
   return pastaId;
 }
 
+// Cada segmento (Educação Infantil, Fundamental 1...) pode ter seu
+// próprio Drive Compartilhado - essa função descobre qual usar a
+// partir do nome da turma
+export function obterPastaRaizDaTurma(turma) {
+  const info = TURMAS.find((t) => t.nome === turma);
+  const segmento = info?.segmento;
+  return DRIVE_CONFIG.pastasRaizPorSegmento?.[segmento] || DRIVE_CONFIG.pastaRaizId;
+}
+
 // Monta (ou reaproveita) a pasta de destino de uma foto:
 // Raiz > Turma > Aluno > Atividade, ou
 // Raiz > Turma > "Não identificados" > Atividade
 // quando ainda não sabemos de qual aluno é a foto.
 export async function obterPastaDestino({ turma, alunoNome, pendente, atividade }, accessToken) {
-  const pastaTurma = await obterOuCriarPasta(turma, DRIVE_CONFIG.pastaRaizId, accessToken);
+  const pastaTurma = await obterOuCriarPasta(turma, obterPastaRaizDaTurma(turma), accessToken);
 
   const pastaAlunoOuPendentes =
     pendente || !alunoNome

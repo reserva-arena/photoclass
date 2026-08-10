@@ -5,7 +5,7 @@
 // automaticamente e define quais turmas ela pode acessar - tudo
 // direto pelo app, sem precisar abrir o Firebase Console.
 
-import { auth, db, firebaseConfig } from "./firebase-config.js?v=20260804b";
+import { auth, db, firebaseConfig } from "./firebase-config.js?v=20260804c";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
   onAuthStateChanged,
@@ -27,11 +27,10 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260804b";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260804b";
-import { aprenderComFoto } from "./aprendizado.js?v=20260804b";
-import { garantirTokenAcesso, obterOuCriarPasta, excluirPasta, adicionarMembroDriveCompartilhado, definirEmailUsuario } from "./drive-upload.js?v=20260804b";
-import { DRIVE_CONFIG } from "./drive-config.js?v=20260804b";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260804c";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260804c";
+import { aprenderComFoto } from "./aprendizado.js?v=20260804c";
+import { garantirTokenAcesso, obterOuCriarPasta, obterPastaRaizDaTurma, excluirPasta, adicionarMembroDriveCompartilhado, definirEmailUsuario } from "./drive-upload.js?v=20260804c";
 
 // Instância secundária do Firebase, só pra criar o login da professora
 // sem afetar a sessão do admin logado no app principal
@@ -221,13 +220,19 @@ form.addEventListener("submit", async (event) => {
       { merge: true }
     );
 
-    // Dá acesso ao Drive Compartilhado também - sem isso, ela consegue
-    // entrar no app mas não consegue subir fotos de verdade
+    // Dá acesso ao(s) Drive(s) Compartilhado(s) certo(s) também - sem
+    // isso, ela consegue entrar no app mas não consegue subir fotos de
+    // verdade. Se ela tiver turmas de mais de um segmento (raro, mas
+    // possível - ex: professora de Educação Física), ganha acesso a
+    // todos os Drives relevantes.
     let driveOk = true;
     try {
       submitButtonText.textContent = "Liberando acesso ao Drive...";
       const accessToken = await garantirTokenAcesso();
-      await adicionarMembroDriveCompartilhado(DRIVE_CONFIG.pastaRaizId, email, accessToken);
+      const pastasRaizUnicas = new Set(turmas.map((t) => obterPastaRaizDaTurma(t)));
+      for (const pastaRaizId of pastasRaizUnicas) {
+        await adicionarMembroDriveCompartilhado(pastaRaizId, email, accessToken);
+      }
     } catch (erroDrive) {
       console.error("Erro ao dar acesso ao Drive Compartilhado:", erroDrive);
       driveOk = false;
@@ -443,7 +448,7 @@ limparTurmaBotao.addEventListener("click", async () => {
     // tem dentro - alunos, atividades, fotos)
     limparTurmaStatus.textContent = "Conectando ao Drive...";
     const accessToken = await garantirTokenAcesso();
-    const pastaTurmaId = await obterOuCriarPasta(turma, DRIVE_CONFIG.pastaRaizId, accessToken);
+    const pastaTurmaId = await obterOuCriarPasta(turma, obterPastaRaizDaTurma(turma), accessToken);
     limparTurmaStatus.textContent = "Apagando pasta no Drive...";
     await excluirPasta(pastaTurmaId, accessToken);
 
