@@ -5,7 +5,7 @@
 // a nenhum aluno automaticamente aparecem aqui, pra professora
 // resolver manualmente sem precisar subir tudo de novo.
 
-import { auth, db } from "./firebase-config.js?v=20260804e";
+import { auth, db } from "./firebase-config.js?v=20260804f";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -19,9 +19,9 @@ import {
   getDocs,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260804e";
-import { garantirTokenAcesso, obterOuCriarPasta, obterPastaRaizDaTurma, moverArquivo, copiarArquivo, excluirArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260804e";
-import { aprenderComFoto } from "./aprendizado.js?v=20260804e";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260804f";
+import { garantirTokenAcesso, obterOuCriarPasta, obterPastaRaizDaTurma, moverArquivo, copiarArquivo, excluirArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260804f";
+import { aprenderComFoto } from "./aprendizado.js?v=20260804f";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");

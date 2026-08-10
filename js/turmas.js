@@ -24,12 +24,30 @@ export const TURMAS = [
   { nome: "Inf. 4B Vesp", segmento: "anosIniciais" },
   { nome: "Inf. 5A Vesp", segmento: "anosIniciais" },
 
-  // Fundamental 1 (1º ano)
-  { nome: "1ºA", segmento: "fundamental1" },
-  { nome: "1ºB", segmento: "fundamental1" },
-  { nome: "1ºC", segmento: "fundamental1" },
-  { nome: "1ºD", segmento: "fundamental1" },
-  { nome: "1ºE", segmento: "fundamental1" }
+  // Fundamental 1
+  { nome: "1º Ano A", segmento: "fundamental1" },
+  { nome: "1º Ano B", segmento: "fundamental1" },
+  { nome: "1º Ano C", segmento: "fundamental1" },
+  { nome: "2º Ano A", segmento: "fundamental1" },
+  { nome: "2º Ano B", segmento: "fundamental1" },
+  { nome: "2º Ano C", segmento: "fundamental1" },
+  { nome: "3º Ano A", segmento: "fundamental1" },
+  { nome: "3º Ano B", segmento: "fundamental1" },
+  { nome: "3º Ano C", segmento: "fundamental1" },
+  { nome: "4º Ano A", segmento: "fundamental1" },
+  { nome: "4º Ano B", segmento: "fundamental1" },
+  { nome: "4º Ano C", segmento: "fundamental1" },
+  { nome: "4º Ano D", segmento: "fundamental1" },
+  { nome: "5º Ano A", segmento: "fundamental1" },
+  { nome: "5º Ano B", segmento: "fundamental1" },
+  { nome: "5º Ano C", segmento: "fundamental1" },
+  { nome: "5º Ano D", segmento: "fundamental1" },
+  { nome: "5º Ano E", segmento: "fundamental1" },
+
+  // Integral (período estendido) - turmas separadas das regulares
+  { nome: "Integral 1º Ano", segmento: "fundamental1" },
+  { nome: "Integral 2º e 3º Ano", segmento: "fundamental1" },
+  { nome: "Integral 4º e 5º Ano", segmento: "fundamental1" }
 ];
 
 export const NOMES_SEGMENTO = {
