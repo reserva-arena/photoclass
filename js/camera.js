@@ -4,7 +4,7 @@
 // Componente reutilizável: abre a câmera do celular numa tela cheia,
 // permite tirar várias fotos seguidas (sem sair do app a cada foto,
 // como um app de scanner), com miniaturas pra conferir/descartar antes
-// de confirmar. Usado tanto em Fotos quanto no Portfólio.
+// de confirmar. Usado tanto em Fotos quanto em Registros do Aluno.
 //
 // Uso:
 //   import { abrirCapturaCamera } from "./camera.js";

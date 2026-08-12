@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PhotoClass - Portfólio</title>
+  <title>PhotoClass - Registros do Aluno</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20260812g">
+  <link rel="stylesheet" href="css/style.css?v=20260812h">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -27,7 +27,7 @@
       <a href="fotos.html">Fotos</a>
       <a href="revisao.html">Revisão</a>
       <a href="galeria.html">Galeria</a>
-      <a href="portfolio.html" class="active">Portfólio</a>
+      <a href="portfolio.html" class="active">Registros do Aluno</a>
       <a href="professores.html" id="nav-professores" hidden>Professoras</a>
     </nav>
     <div class="app-header-actions">
@@ -46,8 +46,8 @@
     </div>
 
     <section class="card">
-      <h2>Portfólio do aluno</h2>
-      <p class="card-subtitle">Envie fotos, vídeos ou documentos de tarefas direto pro portfólio de um aluno específico - fica separado das fotos de atividade.</p>
+      <h2>Registros do Aluno</h2>
+      <p class="card-subtitle">Envie fotos, vídeos ou documentos de tarefas direto pros registros de um aluno específico - fica separado das fotos de atividade.</p>
       <p class="card-subtitle">💡 Fotos de uma atividade da turma inteira (com reconhecimento automático) continuam indo em <a href="fotos.html">Fotos</a>. Aqui é pra trabalhos/tarefas de 1 aluno por vez - qualquer tipo de arquivo.</p>
 
       <div class="field">
@@ -87,18 +87,18 @@
         <label for="portfolio-arquivos-input">Arquivo(s) - fotos, vídeos ou documentos</label>
         <input type="file" id="portfolio-arquivos-input" multiple>
         <button type="button" id="portfolio-camera-btn" class="btn-ghost camera-abrir-btn">📷 Ou tirar fotos agora</button>
-        <p class="card-subtitle" style="margin-top: 4px;">Todos os arquivos selecionados aqui vão pro portfólio do mesmo aluno. Pra outro aluno, faça um novo envio.</p>
+        <p class="card-subtitle" style="margin-top: 4px;">Todos os arquivos selecionados aqui vão pros registros do mesmo aluno. Pra outro aluno, faça um novo envio.</p>
       </div>
 
       <p id="portfolio-error" class="error-message" role="alert" hidden></p>
       <p id="portfolio-success" class="success-message" role="status" hidden></p>
 
-      <button id="portfolio-enviar-button" class="btn-primary" hidden disabled>Enviar pro portfólio</button>
+      <button id="portfolio-enviar-button" class="btn-primary" hidden disabled>Enviar</button>
     </section>
 
   </main>
 
-  <script type="module" src="js/portfolio.js?v=20260812g"></script>
+  <script type="module" src="js/portfolio.js?v=20260812h"></script>
   <footer class="app-footer">
     <a href="guia.html" style="color: #fff; text-decoration: underline;">📖 Guia de uso</a> · <strong>PhotoClass</strong> · Dev: Luciano Galdino · Frontend: HTML, CSS, JS · Hospedagem: GitHub Pages · Backend: Firebase + Google Drive
   </footer>

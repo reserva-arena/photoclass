@@ -1,22 +1,22 @@
 // ============================================
-// PhotoClass - Portfólio do Aluno
+// PhotoClass - Registros do Aluno
 // ============================================
 // Envio manual (sem reconhecimento facial) de fotos, vídeos ou
-// documentos de tarefas pro portfólio de um aluno específico.
+// documentos de tarefas pros registros de um aluno específico.
 // Fica numa estrutura separada das fotos de atividade:
-// [Turma] > Portfólio > [Aluno] > [Data - Título] > arquivo(s)
+// [Turma] > Registros do Aluno > [Aluno] > [Data - Título] > arquivo(s)
 //
-// Como "Portfólio" é uma subpasta dentro da própria pasta da turma,
+// Como "Registros do Aluno" é uma subpasta dentro da própria pasta da turma,
 // a professora já tem acesso automático (mesma permissão que ela já
 // tem pra turma dela) - não precisa conceder acesso separado.
 
-import { auth, db } from "./firebase-config.js?v=20260812g";
+import { auth, db } from "./firebase-config.js?v=20260812h";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { collection, query, where, orderBy, limit, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812g";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812g";
-import { garantirTokenAcesso, obterOuCriarPasta, obterPastaRaizDaTurma, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260812g";
-import { abrirCapturaCamera } from "./camera.js?v=20260812g";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812h";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812h";
+import { garantirTokenAcesso, obterOuCriarPasta, obterPastaRaizDaTurma, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260812h";
+import { abrirCapturaCamera } from "./camera.js?v=20260812h";
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");
@@ -241,7 +241,7 @@ function finalizarProgresso() {
   processingBanner.hidden = true;
 }
 
-// ---------- Enviar pro portfólio ----------
+// ---------- Enviar pros registros do aluno ----------
 enviarButton.addEventListener("click", async () => {
   esconderMensagens();
   const turma = turmaSelect.value;
@@ -270,7 +270,7 @@ enviarButton.addEventListener("click", async () => {
     } else {
       const raizId = obterPastaRaizDaTurma(turma);
       const pastaTurma = await obterOuCriarPasta(turma, raizId, accessToken);
-      const pastaPortfolio = await obterOuCriarPasta("Portfólio", pastaTurma, accessToken);
+      const pastaPortfolio = await obterOuCriarPasta("Registros do Aluno", pastaTurma, accessToken);
       const pastaAluno = await obterOuCriarPasta(alunoNome, pastaPortfolio, accessToken);
       const dataHoje = new Date().toISOString().slice(0, 10);
       pastaEnvio = await obterOuCriarPasta(`${dataHoje} - ${titulo}`, pastaAluno, accessToken);
@@ -305,7 +305,7 @@ enviarButton.addEventListener("click", async () => {
     }
 
     atualizarProgresso(100, "Concluído!");
-    portfolioSuccess.textContent = `✅ ${enviados} arquivo(s) enviado(s) pro portfólio de ${alunoNome}!`;
+    portfolioSuccess.textContent = `✅ ${enviados} arquivo(s) enviado(s) pros registros de ${alunoNome}!`;
     portfolioSuccess.hidden = false;
 
     tituloInput.value = "";
@@ -325,7 +325,7 @@ enviarButton.addEventListener("click", async () => {
     portfolioError.hidden = false;
   } finally {
     enviarButton.disabled = false;
-    enviarButton.textContent = "Enviar pro portfólio";
+    enviarButton.textContent = "Enviar";
     finalizarProgresso();
   }
 });
