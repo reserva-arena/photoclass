@@ -10,13 +10,13 @@
 // a professora já tem acesso automático (mesma permissão que ela já
 // tem pra turma dela) - não precisa conceder acesso separado.
 
-import { auth, db } from "./firebase-config.js?v=20260812f";
+import { auth, db } from "./firebase-config.js?v=20260812g";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812f";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812f";
-import { garantirTokenAcesso, obterOuCriarPasta, obterPastaRaizDaTurma, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260812f";
-import { abrirCapturaCamera } from "./camera.js?v=20260812f";
+import { collection, query, where, orderBy, limit, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812g";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812g";
+import { garantirTokenAcesso, obterOuCriarPasta, obterPastaRaizDaTurma, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260812g";
+import { abrirCapturaCamera } from "./camera.js?v=20260812g";
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");
@@ -25,8 +25,13 @@ const logoutButton = document.getElementById("logout-button");
 const turmaSelect = document.getElementById("portfolio-turma-select");
 const alunoField = document.getElementById("portfolio-aluno-field");
 const alunoSelect = document.getElementById("portfolio-aluno-select");
+const tituloModoField = document.getElementById("portfolio-titulo-modo-field");
+const tituloModoNovoBtn = document.getElementById("titulo-modo-novo-btn");
+const tituloModoExistenteBtn = document.getElementById("titulo-modo-existente-btn");
 const tituloField = document.getElementById("portfolio-titulo-field");
 const tituloInput = document.getElementById("portfolio-titulo-input");
+const tituloExistenteField = document.getElementById("portfolio-titulo-existente-field");
+const tituloExistenteSelect = document.getElementById("portfolio-titulo-existente-select");
 const arquivosField = document.getElementById("portfolio-arquivos-field");
 const arquivosInput = document.getElementById("portfolio-arquivos-input");
 const enviarButton = document.getElementById("portfolio-enviar-button");
@@ -39,6 +44,7 @@ const progressText = document.getElementById("progress-text");
 
 let usuarioAtual = null;
 let turmasPermitidas = null;
+let modoTitulo = "novo"; // "novo" ou "existente"
 
 // ---------- Proteção da página ----------
 onAuthStateChanged(auth, (user) => {
@@ -96,7 +102,9 @@ turmaSelect.addEventListener("change", async () => {
   const turma = turmaSelect.value;
   esconderMensagens();
   alunoField.hidden = !turma;
+  tituloModoField.hidden = true;
   tituloField.hidden = true;
+  tituloExistenteField.hidden = true;
   arquivosField.hidden = true;
   enviarButton.hidden = true;
 
@@ -124,11 +132,76 @@ turmaSelect.addEventListener("change", async () => {
 
 alunoSelect.addEventListener("change", () => {
   const temAluno = Boolean(alunoSelect.value);
-  tituloField.hidden = !temAluno;
+  tituloModoField.hidden = !temAluno;
   arquivosField.hidden = !temAluno;
   enviarButton.hidden = !temAluno;
+
+  modoTitulo = "novo";
+  tituloModoNovoBtn.classList.add("galeria-modo-btn--ativo");
+  tituloModoExistenteBtn.classList.remove("galeria-modo-btn--ativo");
+  tituloField.hidden = !temAluno;
+  tituloExistenteField.hidden = true;
+  tituloInput.value = "";
+
+  if (temAluno) carregarTitulosRecentes();
   atualizarBotaoEnviar();
 });
+
+// Busca os títulos já usados pra esse aluno, pra poder "continuar"
+// em vez de criar uma pasta nova por engano
+async function carregarTitulosRecentes() {
+  const turma = turmaSelect.value;
+  const alunoId = alunoSelect.value;
+  tituloExistenteSelect.innerHTML = `<option value="">Carregando...</option>`;
+
+  try {
+    const snapshot = await getDocs(
+      query(collection(db, "portfolio"), where("turma", "==", turma), where("alunoId", "==", alunoId), orderBy("criadoEm", "desc"), limit(30))
+    );
+    const vistos = new Set();
+    const titulos = [];
+    snapshot.forEach((docSnap) => {
+      const dados = docSnap.data();
+      if (dados.titulo && !vistos.has(dados.titulo)) {
+        vistos.add(dados.titulo);
+        titulos.push({ titulo: dados.titulo, pastaId: dados.drivePastaId });
+      }
+    });
+
+    if (titulos.length === 0) {
+      tituloExistenteSelect.innerHTML = `<option value="">Nenhum título ainda pra esse aluno</option>`;
+      return;
+    }
+
+    tituloExistenteSelect.innerHTML = `<option value="">Selecione o título</option>` +
+      titulos.map((t) => `<option value="${t.pastaId}" data-titulo="${t.titulo}">${t.titulo}</option>`).join("");
+  } catch (erro) {
+    // Provavelmente falta o índice do Firestore (turma + alunoId + orderBy) - não trava a tela
+    console.error("Erro ao carregar títulos recentes:", erro);
+    tituloExistenteSelect.innerHTML = `<option value="">Não foi possível carregar - use "Novo título"</option>`;
+  }
+}
+
+// ---------- Toggle Novo título / Continuar título existente ----------
+tituloModoNovoBtn.addEventListener("click", () => {
+  modoTitulo = "novo";
+  tituloModoNovoBtn.classList.add("galeria-modo-btn--ativo");
+  tituloModoExistenteBtn.classList.remove("galeria-modo-btn--ativo");
+  tituloField.hidden = false;
+  tituloExistenteField.hidden = true;
+  atualizarBotaoEnviar();
+});
+
+tituloModoExistenteBtn.addEventListener("click", () => {
+  modoTitulo = "existente";
+  tituloModoExistenteBtn.classList.add("galeria-modo-btn--ativo");
+  tituloModoNovoBtn.classList.remove("galeria-modo-btn--ativo");
+  tituloField.hidden = true;
+  tituloExistenteField.hidden = false;
+  atualizarBotaoEnviar();
+});
+
+tituloExistenteSelect.addEventListener("change", atualizarBotaoEnviar);
 
 tituloInput.addEventListener("input", atualizarBotaoEnviar);
 arquivosInput.addEventListener("change", atualizarBotaoEnviar);
@@ -146,7 +219,8 @@ document.getElementById("portfolio-camera-btn").addEventListener("click", async 
 });
 
 function atualizarBotaoEnviar() {
-  enviarButton.disabled = !tituloInput.value.trim() || arquivosInput.files.length === 0;
+  const tituloOk = modoTitulo === "novo" ? Boolean(tituloInput.value.trim()) : Boolean(tituloExistenteSelect.value);
+  enviarButton.disabled = !tituloOk || arquivosInput.files.length === 0;
 }
 
 function esconderMensagens() {
@@ -174,7 +248,9 @@ enviarButton.addEventListener("click", async () => {
   const alunoOpcao = alunoSelect.selectedOptions[0];
   const alunoId = alunoOpcao.value;
   const alunoNome = alunoOpcao.getAttribute("data-nome");
-  const titulo = tituloInput.value.trim();
+  const titulo = modoTitulo === "existente"
+    ? tituloExistenteSelect.selectedOptions[0]?.getAttribute("data-titulo")
+    : tituloInput.value.trim();
   const arquivos = [...arquivosInput.files];
 
   if (!turma || !alunoId || !titulo || arquivos.length === 0) return;
@@ -187,13 +263,18 @@ enviarButton.addEventListener("click", async () => {
   try {
     const accessToken = await garantirTokenAcesso();
 
-    const raizId = obterPastaRaizDaTurma(turma);
-    const pastaTurma = await obterOuCriarPasta(turma, raizId, accessToken);
-    const pastaPortfolio = await obterOuCriarPasta("Portfólio", pastaTurma, accessToken);
-    const pastaAluno = await obterOuCriarPasta(alunoNome, pastaPortfolio, accessToken);
-
-    const dataHoje = new Date().toISOString().slice(0, 10);
-    const pastaEnvio = await obterOuCriarPasta(`${dataHoje} - ${titulo}`, pastaAluno, accessToken);
+    let pastaEnvio;
+    if (modoTitulo === "existente") {
+      // Já sabemos o ID da pasta - não precisa recriar o caminho
+      pastaEnvio = tituloExistenteSelect.value;
+    } else {
+      const raizId = obterPastaRaizDaTurma(turma);
+      const pastaTurma = await obterOuCriarPasta(turma, raizId, accessToken);
+      const pastaPortfolio = await obterOuCriarPasta("Portfólio", pastaTurma, accessToken);
+      const pastaAluno = await obterOuCriarPasta(alunoNome, pastaPortfolio, accessToken);
+      const dataHoje = new Date().toISOString().slice(0, 10);
+      pastaEnvio = await obterOuCriarPasta(`${dataHoje} - ${titulo}`, pastaAluno, accessToken);
+    }
 
     let enviados = 0;
     for (let i = 0; i < arquivos.length; i++) {
@@ -230,7 +311,12 @@ enviarButton.addEventListener("click", async () => {
     tituloInput.value = "";
     arquivosInput.value = "";
     alunoSelect.value = "";
+    modoTitulo = "novo";
+    tituloModoNovoBtn.classList.add("galeria-modo-btn--ativo");
+    tituloModoExistenteBtn.classList.remove("galeria-modo-btn--ativo");
+    tituloModoField.hidden = true;
     tituloField.hidden = true;
+    tituloExistenteField.hidden = true;
     arquivosField.hidden = true;
     enviarButton.hidden = true;
   } catch (erro) {
