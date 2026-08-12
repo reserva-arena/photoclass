@@ -6,7 +6,7 @@
 // consultar o Google Drive ao vivo, então é rápido pra qualquer um
 // que tenha acesso ao app (não exige autorização do Drive).
 
-import { auth, db } from "./firebase-config.js?v=20260812a";
+import { auth, db } from "./firebase-config.js?v=20260812b";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -17,12 +17,12 @@ import {
   startAfter,
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812a";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812b";
 import {
   garantirTokenAcesso,
   obterOuCriarPasta,
   obterPastaRaizDaTurma
-} from "./drive-upload.js?v=20260812a";
+} from "./drive-upload.js?v=20260812b";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
@@ -59,7 +59,22 @@ let indiceQueryFallbackTurma = false;
 
 let turmaAtual = null;
 let alunoAtual = null; // { id, nome }
+let mesAtual = null; // "AAAA-MM", só no modo "por atividade"
 let atividadeAtual = null; // string
+
+const NOMES_MES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+// Extrai "AAAA-MM" do prefixo de data da atividade, pra agrupar por mês
+function obterChaveDoMes(atividade) {
+  const match = atividade.match(/^(\d{4})-(\d{2})-\d{2}/);
+  return match ? `${match[1]}-${match[2]}` : "Sem data";
+}
+
+function nomeDoMes(chaveMes) {
+  const [ano, mes] = chaveMes.split("-");
+  if (!mes) return chaveMes;
+  return `${NOMES_MES[parseInt(mes, 10) - 1]} ${ano}`;
+}
 
 onAuthStateChanged(auth, (user) => {
   if (!user) {
@@ -195,7 +210,8 @@ function renderizarBreadcrumb() {
     if (alunoAtual) partes.push(`<span class="galeria-separador">›</span><button data-nivel="aluno">${alunoAtual.nome}</button>`);
     if (atividadeAtual) partes.push(`<span class="galeria-separador">›</span><span class="galeria-atual">${nomeAtividadeAtual}</span>`);
   } else {
-    partes.push(`<span class="galeria-separador">›</span><span class="galeria-atual">📅 Por Atividade</span>`);
+    partes.push(`<span class="galeria-separador">›</span><button data-nivel="modo-atividade">📅 Por Atividade</button>`);
+    if (mesAtual) partes.push(`<span class="galeria-separador">›</span><button data-nivel="mes">${nomeDoMes(mesAtual)}</button>`);
     if (atividadeAtual) partes.push(`<span class="galeria-separador">›</span><span class="galeria-atual">${nomeAtividadeAtual}</span>`);
   }
 
@@ -207,12 +223,20 @@ function renderizarBreadcrumb() {
       const nivel = botao.getAttribute("data-nivel");
       if (nivel === "turma") {
         alunoAtual = null;
+        mesAtual = null;
         atividadeAtual = null;
         if (modoGaleria === "aluno") renderizarAlunos();
         else abrirModoAtividade();
       } else if (nivel === "aluno") {
         atividadeAtual = null;
         renderizarAtividades();
+      } else if (nivel === "modo-atividade") {
+        mesAtual = null;
+        atividadeAtual = null;
+        renderizarMesesDaTurma();
+      } else if (nivel === "mes") {
+        atividadeAtual = null;
+        abrirMesDaTurma(mesAtual);
       }
     });
   });
@@ -404,9 +428,10 @@ function renderizarFotos() {
   });
 }
 
-// ---------- Modo "Por Atividade" (nível 1: atividades da turma inteira) ----------
+// ---------- Modo "Por Atividade" (nível 1: meses da turma inteira) ----------
 async function abrirModoAtividade() {
   alunoAtual = null;
+  mesAtual = null;
   atividadeAtual = null;
   fotosPorTurmaAtual = [];
   ultimoDocPaginacaoTurma = null;
@@ -419,7 +444,7 @@ async function abrirModoAtividade() {
 
   try {
     await buscarMaisAtividadesDaTurma();
-    renderizarAtividadesDaTurma();
+    renderizarMesesDaTurma();
   } catch (erro) {
     console.error(erro);
     galeriaGrid.innerHTML = `<p class="empty-state">Erro ao carregar as atividades: ${erro.message || erro}.</p>`;
@@ -465,23 +490,73 @@ async function buscarMaisAtividadesDaTurma() {
   }
 }
 
-function renderizarAtividadesDaTurma() {
+function renderizarMesesDaTurma() {
   renderizarBreadcrumb();
 
-  const porAtividade = new Map(); // atividade -> { fotos: [...], alunos: Set }
+  const porMes = new Map(); // "AAAA-MM" -> { fotos: [...], atividades: Set }
   fotosPorTurmaAtual.forEach((foto) => {
-    const chave = foto.atividade || "Sem atividade";
-    if (!porAtividade.has(chave)) porAtividade.set(chave, { fotos: [], alunos: new Set() });
-    porAtividade.get(chave).fotos.push(foto);
-    if (foto.alunoNome) porAtividade.get(chave).alunos.add(foto.alunoNome);
+    const chaveMes = obterChaveDoMes(foto.atividade || "");
+    if (!porMes.has(chaveMes)) porMes.set(chaveMes, { fotos: [], atividades: new Set() });
+    porMes.get(chaveMes).fotos.push(foto);
+    if (foto.atividade) porMes.get(chaveMes).atividades.add(foto.atividade);
   });
 
-  const atividadesOrdenadas = [...porAtividade.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  const mesesOrdenados = [...porMes.entries()].sort((a, b) => b[0].localeCompare(a[0]));
 
-  if (atividadesOrdenadas.length === 0) {
+  if (mesesOrdenados.length === 0) {
     galeriaGrid.innerHTML = `<p class="empty-state">Nenhuma foto identificada ainda nessa turma.</p>`;
     return;
   }
+
+  galeriaGrid.innerHTML = "";
+  mesesOrdenados.forEach(([chaveMes, dados]) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "galeria-card";
+    card.innerHTML = `
+      <img src="${dados.fotos[0].foto}" alt="${nomeDoMes(chaveMes)}" class="galeria-card-capa">
+      <div class="galeria-card-info">
+        <span class="galeria-card-nome">${nomeDoMes(chaveMes)}</span>
+        <span class="galeria-card-contagem">${dados.atividades.size} atividade(s) · ${dados.fotos.length} foto(s)</span>
+      </div>
+    `;
+    card.addEventListener("click", () => abrirMesDaTurma(chaveMes));
+    galeriaGrid.appendChild(card);
+  });
+
+  if (!semMaisAtividadesAntigas) {
+    const botaoMais = document.createElement("button");
+    botaoMais.type = "button";
+    botaoMais.className = "btn-ghost";
+    botaoMais.style.marginTop = "12px";
+    botaoMais.textContent = "Ver meses mais antigos";
+    botaoMais.addEventListener("click", async () => {
+      botaoMais.disabled = true;
+      botaoMais.textContent = "Buscando...";
+      await buscarMaisAtividadesDaTurma();
+      renderizarMesesDaTurma();
+    });
+    galeriaGrid.appendChild(botaoMais);
+  }
+}
+
+// ---------- Modo "Por Atividade" (nível 2: atividades daquele mês) ----------
+function abrirMesDaTurma(chaveMes) {
+  mesAtual = chaveMes;
+  atividadeAtual = null;
+  renderizarBreadcrumb();
+
+  const porAtividade = new Map(); // atividade -> { fotos: [...], alunos: Set }
+  fotosPorTurmaAtual
+    .filter((foto) => obterChaveDoMes(foto.atividade || "") === chaveMes)
+    .forEach((foto) => {
+      const chave = foto.atividade || "Sem atividade";
+      if (!porAtividade.has(chave)) porAtividade.set(chave, { fotos: [], alunos: new Set() });
+      porAtividade.get(chave).fotos.push(foto);
+      if (foto.alunoNome) porAtividade.get(chave).alunos.add(foto.alunoNome);
+    });
+
+  const atividadesOrdenadas = [...porAtividade.entries()].sort((a, b) => b[0].localeCompare(a[0]));
 
   galeriaGrid.innerHTML = "";
   atividadesOrdenadas.forEach(([atividade, dados]) => {
@@ -500,21 +575,6 @@ function renderizarAtividadesDaTurma() {
     card.addEventListener("click", () => abrirAtividadeDaTurma(atividade));
     galeriaGrid.appendChild(card);
   });
-
-  if (!semMaisAtividadesAntigas) {
-    const botaoMais = document.createElement("button");
-    botaoMais.type = "button";
-    botaoMais.className = "btn-ghost";
-    botaoMais.style.marginTop = "12px";
-    botaoMais.textContent = "Ver atividades mais antigas";
-    botaoMais.addEventListener("click", async () => {
-      botaoMais.disabled = true;
-      botaoMais.textContent = "Buscando...";
-      await buscarMaisAtividadesDaTurma();
-      renderizarAtividadesDaTurma();
-    });
-    galeriaGrid.appendChild(botaoMais);
-  }
 }
 
 // ---------- Modo "Por Atividade" (nível 2: todas as fotos daquela
