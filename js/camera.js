@@ -30,7 +30,7 @@ export function abrirCapturaCamera() {
       <div class="camera-controles">
         <button type="button" id="camera-cancelar" class="btn-ghost camera-botao-claro">Cancelar</button>
         <button type="button" id="camera-capturar" class="camera-botao-capturar" aria-label="Tirar foto"></button>
-        <button type="button" id="camera-concluir" class="btn-primary" disabled>Usar fotos (0)</button>
+        <button type="button" id="camera-concluir" class="btn-primary" disabled>Usar (0)</button>
       </div>
     `;
     document.body.appendChild(overlay);
@@ -55,7 +55,7 @@ export function abrirCapturaCamera() {
 
     function atualizarContadores() {
       contadorEl.textContent = `${capturas.length} foto(s)`;
-      botaoConcluir.textContent = `Usar fotos (${capturas.length})`;
+      botaoConcluir.textContent = `Usar (${capturas.length})`;
       botaoConcluir.disabled = capturas.length === 0;
     }
 
