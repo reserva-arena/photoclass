@@ -5,21 +5,23 @@
 // direto no navegador do professor - nenhuma foto sai
 // do dispositivo até o momento de salvar.
 
-import { auth, db } from "./firebase-config.js?v=20260812b";
+import { auth, db } from "./firebase-config.js?v=20260812c";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
   query,
   where,
+  orderBy,
+  limit,
   documentId,
   getDocs,
   addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812b";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260812b";
-import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260812b";
-import { aprenderComFoto } from "./aprendizado.js?v=20260812b";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812c";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260812c";
+import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260812c";
+import { aprenderComFoto } from "./aprendizado.js?v=20260812c";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")
@@ -28,6 +30,7 @@ function ehAltaConfianca(face) {
   return Boolean(face.alunoId) && face.distancia < LIMIAR_ALTA_CONFIANCA && !face.duplicadoNaFoto;
 }
 const RESOLUCAO_DETECCAO = 608; // maior = detecta rostos menores melhor (fotos com várias pessoas), mas processa mais devagar
+const LIMITE_FOTOS_POR_ENVIO = 50; // no celular, evita travar o navegador com envios gigantes de uma vez
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");
@@ -36,7 +39,12 @@ const logoutButton = document.getElementById("logout-button");
 const turmaSelect = document.getElementById("turma-select");
 const uploadCard = document.getElementById("upload-card");
 const uploadSubtitle = document.getElementById("upload-subtitle");
+const atividadeModoNovaBtn = document.getElementById("atividade-modo-nova-btn");
+const atividadeModoExistenteBtn = document.getElementById("atividade-modo-existente-btn");
+const atividadeNovaField = document.getElementById("atividade-nova-field");
+const atividadeExistenteField = document.getElementById("atividade-existente-field");
 const atividadeInput = document.getElementById("atividade-input");
+const atividadeExistenteSelect = document.getElementById("atividade-existente-select");
 const fotosInput = document.getElementById("fotos-input");
 const uploadError = document.getElementById("upload-error");
 const uploadInfo = document.getElementById("upload-info");
@@ -59,6 +67,7 @@ let turmasPermitidas = null; // null = admin (todas); [] = nenhuma turma liberad
 let alunosDaTurma = []; // [{id, nome, foto}]
 let modelosCarregados = false;
 let resultadosProcessados = []; // [{ fotoDataUrl, faces: [{alunoId, alunoNome, distancia}] }]
+let modoAtividade = "nova"; // "nova" ou "existente"
 
 // ---------- Proteção da página ----------
 onAuthStateChanged(auth, (user) => {
@@ -168,10 +177,81 @@ turmaSelect.addEventListener("change", async () => {
   });
 
   uploadSubtitle.textContent = `${alunosDaTurma.length} aluno(s) nessa turma`;
+  carregarAtividadesRecentes(turma);
+});
+
+// Busca as atividades mais recentes dessa turma, pra popular o select
+// de "continuar uma atividade" - evita a professora ter que digitar de
+// novo (e arriscar criar uma pasta duplicada por causa de um typo)
+async function carregarAtividadesRecentes(turma) {
+  atividadeExistenteSelect.innerHTML = `<option value="">Carregando...</option>`;
+  try {
+    const snapshot = await getDocs(
+      query(collection(db, "fotos"), where("turma", "==", turma), orderBy("criadoEm", "desc"), limit(60))
+    );
+    const vistas = new Set();
+    const atividades = [];
+    snapshot.forEach((docSnap) => {
+      const atividade = docSnap.data().atividade;
+      if (atividade && !vistas.has(atividade)) {
+        vistas.add(atividade);
+        atividades.push(atividade);
+      }
+    });
+
+    if (atividades.length === 0) {
+      atividadeExistenteSelect.innerHTML = `<option value="">Nenhuma atividade recente nessa turma ainda</option>`;
+      return;
+    }
+
+    atividadeExistenteSelect.innerHTML = `<option value="">Selecione a atividade</option>` +
+      atividades.slice(0, 20).map((a) => {
+        const { dataFormatada, nome } = separarDataEAtividade(a);
+        return `<option value="${a}">${dataFormatada ? `${dataFormatada} - ` : ""}${nome}</option>`;
+      }).join("");
+  } catch (erro) {
+    // Provavelmente falta o índice do Firestore (turma + orderBy criadoEm) - não trava a tela
+    console.error("Erro ao carregar atividades recentes:", erro);
+    atividadeExistenteSelect.innerHTML = `<option value="">Não foi possível carregar - use "Nova atividade"</option>`;
+  }
+}
+
+function separarDataEAtividade(atividade) {
+  const match = atividade.match(/^(\d{4})-(\d{2})-(\d{2}) - (.+)$/);
+  if (!match) return { dataFormatada: "", nome: atividade };
+  const [, ano, mes, dia] = match;
+  return { dataFormatada: `${dia}/${mes}/${ano}`, nome: match[4] };
+}
+
+// ---------- Toggle Nova atividade / Continuar atividade existente ----------
+atividadeModoNovaBtn.addEventListener("click", () => {
+  modoAtividade = "nova";
+  atividadeModoNovaBtn.classList.add("galeria-modo-btn--ativo");
+  atividadeModoExistenteBtn.classList.remove("galeria-modo-btn--ativo");
+  atividadeNovaField.hidden = false;
+  atividadeExistenteField.hidden = true;
+});
+
+atividadeModoExistenteBtn.addEventListener("click", () => {
+  modoAtividade = "existente";
+  atividadeModoExistenteBtn.classList.add("galeria-modo-btn--ativo");
+  atividadeModoNovaBtn.classList.remove("galeria-modo-btn--ativo");
+  atividadeNovaField.hidden = true;
+  atividadeExistenteField.hidden = false;
 });
 
 fotosInput.addEventListener("change", () => {
-  processButton.disabled = fotosInput.files.length === 0;
+  const total = fotosInput.files.length;
+  if (total > LIMITE_FOTOS_POR_ENVIO) {
+    uploadError.textContent = `Selecione no máximo ${LIMITE_FOTOS_POR_ENVIO} fotos por vez (você selecionou ${total}). Envie em grupos menores - use "Continuar uma atividade" pra juntar tudo na mesma pasta depois.`;
+    uploadError.hidden = false;
+    fotosInput.value = "";
+    processButton.disabled = true;
+    return;
+  }
+  uploadError.hidden = true;
+  uploadInfo.hidden = true;
+  processButton.disabled = total === 0;
 });
 
 // ---------- Carregar modelos do face-api.js ----------
@@ -297,10 +377,17 @@ processButton.addEventListener("click", async () => {
   uploadError.hidden = true;
   uploadInfo.hidden = true;
 
-  if (!atividadeInput.value.trim()) {
+  if (modoAtividade === "nova" && !atividadeInput.value.trim()) {
     uploadError.textContent = "Preencha o nome da atividade antes de continuar.";
     uploadError.hidden = false;
     atividadeInput.focus();
+    return;
+  }
+
+  if (modoAtividade === "existente" && !atividadeExistenteSelect.value) {
+    uploadError.textContent = "Selecione a atividade que você quer continuar.";
+    uploadError.hidden = false;
+    atividadeExistenteSelect.focus();
     return;
   }
 
@@ -620,7 +707,9 @@ saveButton.addEventListener("click", async () => {
 
     const turma = turmaSelect.value;
     const dataHoje = new Date().toISOString().slice(0, 10); // AAAA-MM-DD
-    const nomeAtividade = `${dataHoje} - ${atividadeInput.value.trim()}`;
+    const nomeAtividade = modoAtividade === "existente"
+      ? atividadeExistenteSelect.value
+      : `${dataHoje} - ${atividadeInput.value.trim()}`;
 
     // Fotos marcadas como "não salvar nenhuma foto desta imagem"
     const fotosIgnoradas = new Set(
@@ -745,7 +834,7 @@ saveButton.addEventListener("click", async () => {
     }
 
     atualizarProgresso(100, "Concluído!");
-    saveSuccess.textContent = `${salvos} foto(s) salva(s) com sucesso no Google Drive!`
+    saveSuccess.textContent = `✅ ${salvos} foto(s) salva(s) com sucesso no Google Drive! Já pode apagar essas fotos do celular, se quiser liberar espaço.`
       + (rostosDescartadosAutomatico > 0 ? ` (${rostosDescartadosAutomatico} rosto(s) extra(s) ignorado(s) automaticamente - a turma toda já tinha sido identificada nessa(s) foto(s))` : "");
     saveSuccess.hidden = false;
 
@@ -767,6 +856,7 @@ saveButton.addEventListener("click", async () => {
     fotosInput.value = "";
     atividadeInput.value = "";
     processButton.disabled = true;
+    carregarAtividadesRecentes(turma);
   } catch (erro) {
     console.error(erro);
     alert(`Erro ao salvar as fotos no Drive:\n\n${erro.message || erro}\n\nSe o erro mencionar permissão, pode ser preciso reautorizar o acesso ao Drive (saia e entre de novo).`);

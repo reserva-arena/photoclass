@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20260812b">
+  <link rel="stylesheet" href="css/style.css?v=20260812c">
   <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -62,11 +62,26 @@
       <p class="card-subtitle" id="upload-subtitle">Selecione as fotos da atividade</p>
 
       <div class="field">
-        <label for="atividade-input">Nome da atividade</label>
+        <label>Atividade</label>
+        <div class="galeria-modo-toggle">
+          <button type="button" class="galeria-modo-btn galeria-modo-btn--ativo" id="atividade-modo-nova-btn">+ Nova atividade</button>
+          <button type="button" class="galeria-modo-btn" id="atividade-modo-existente-btn">Continuar uma atividade</button>
+        </div>
+      </div>
+
+      <div class="field" id="atividade-nova-field">
         <input type="text" id="atividade-input" placeholder="Ex: Passeio ao Zoológico, Dia do Folclore...">
       </div>
 
+      <div class="field" id="atividade-existente-field" hidden>
+        <select id="atividade-existente-select">
+          <option value="">Carregando atividades recentes...</option>
+        </select>
+        <p class="card-subtitle" style="margin-top: 4px;">Use pra continuar enviando fotos da mesma atividade (ex: mais de 50 fotos de um evento), sem criar uma pasta duplicada.</p>
+      </div>
+
       <div class="field">
+        <label for="fotos-input">Fotos (máximo 50 por vez)</label>
         <input type="file" id="fotos-input" accept="image/*" multiple>
       </div>
 
@@ -93,7 +108,7 @@
 
   </main>
 
-  <script type="module" src="js/fotos.js?v=20260812b"></script>
+  <script type="module" src="js/fotos.js?v=20260812c"></script>
   <footer class="app-footer">
     <a href="guia.html" style="color: #fff; text-decoration: underline;">📖 Guia de uso</a> · <strong>PhotoClass</strong> · Dev: Luciano Galdino · Frontend: HTML, CSS, JS · Hospedagem: GitHub Pages · Backend: Firebase + Google Drive
   </footer>
