@@ -6,7 +6,7 @@
 // consultar o Google Drive ao vivo, então é rápido pra qualquer um
 // que tenha acesso ao app (não exige autorização do Drive).
 
-import { auth, db } from "./firebase-config.js?v=20260804f";
+import { auth, db } from "./firebase-config.js?v=20260812a";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -15,26 +15,19 @@ import {
   orderBy,
   limit,
   startAfter,
-  getDocs,
-  doc,
-  getDoc,
-  updateDoc
+  getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260804f";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812a";
 import {
   garantirTokenAcesso,
   obterOuCriarPasta,
-  obterPastaRaizDaTurma,
-  compartilharComEmail,
-  listarAcessosPorEmail,
-  removerCompartilhamento
-} from "./drive-upload.js?v=20260804f";
+  obterPastaRaizDaTurma
+} from "./drive-upload.js?v=20260812a";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");
 const galeriaSubtitle = document.getElementById("galeria-subtitle");
 const galeriaBreadcrumb = document.getElementById("galeria-breadcrumb");
-const galeriaCompartilhar = document.getElementById("galeria-compartilhar");
 const galeriaTurmaField = document.getElementById("galeria-turma-field");
 const galeriaTurmaSelect = document.getElementById("galeria-turma-select");
 const galeriaModoField = document.getElementById("galeria-modo-field");
@@ -43,6 +36,16 @@ const galeriaGrid = document.getElementById("galeria-grid");
 
 let turmasPermitidas = null;
 let modoGaleria = "atividade"; // "aluno" ou "atividade" - abre em "atividade" por padrão (mais usado logo após subir fotos)
+
+// A atividade é guardada como "AAAA-MM-DD - Nome" (o prefixo de data
+// garante a ordenação por mais recente). Aqui a gente separa os dois,
+// pra mostrar a data pequena e o nome por extenso, sem cortar.
+function separarDataEAtividade(atividade) {
+  const match = atividade.match(/^(\d{4})-(\d{2})-(\d{2}) - (.+)$/);
+  if (!match) return { dataFormatada: "", nome: atividade };
+  const [, ano, mes, dia] = match;
+  return { dataFormatada: `${dia}/${mes}/${ano}`, nome: match[4] };
+}
 let alunosDaTurma = []; // [{id, nome, foto}] - leve, vem do cadastro, não das fotos
 let fotosDoAlunoAtual = []; // só as fotos do aluno que está aberto agora (vai crescendo conforme pagina)
 let ultimoDocPaginacao = null; // cursor pra buscar a próxima leva de fotos mais antigas (modo aluno)
@@ -186,13 +189,14 @@ document.querySelectorAll(".galeria-modo-btn").forEach((botao) => {
 function renderizarBreadcrumb() {
   const partes = [];
   partes.push(`<button data-nivel="turma">${turmaAtual}</button>`);
+  const nomeAtividadeAtual = atividadeAtual ? separarDataEAtividade(atividadeAtual).nome : "";
 
   if (modoGaleria === "aluno") {
     if (alunoAtual) partes.push(`<span class="galeria-separador">›</span><button data-nivel="aluno">${alunoAtual.nome}</button>`);
-    if (atividadeAtual) partes.push(`<span class="galeria-separador">›</span><span class="galeria-atual">${atividadeAtual}</span>`);
+    if (atividadeAtual) partes.push(`<span class="galeria-separador">›</span><span class="galeria-atual">${nomeAtividadeAtual}</span>`);
   } else {
     partes.push(`<span class="galeria-separador">›</span><span class="galeria-atual">📅 Por Atividade</span>`);
-    if (atividadeAtual) partes.push(`<span class="galeria-separador">›</span><span class="galeria-atual">${atividadeAtual}</span>`);
+    if (atividadeAtual) partes.push(`<span class="galeria-separador">›</span><span class="galeria-atual">${nomeAtividadeAtual}</span>`);
   }
 
   galeriaBreadcrumb.innerHTML = partes.join(" ");
@@ -217,7 +221,6 @@ function renderizarBreadcrumb() {
 // ---------- Nível 1: Alunos da turma ----------
 function renderizarAlunos() {
   galeriaBreadcrumb.hidden = true;
-  galeriaCompartilhar.hidden = true;
   galeriaVazio.hidden = true;
 
   if (alunosDaTurma.length === 0) {
@@ -323,7 +326,6 @@ async function buscarMaisFotosDoAluno() {
 // ---------- Nível 2: Atividades do aluno ----------
 function renderizarAtividades() {
   renderizarBreadcrumb();
-  renderizarCompartilhar();
 
   const porAtividade = new Map(); // atividade -> { fotos: [...] }
   fotosDoAlunoAtual.forEach((foto) => {
@@ -341,13 +343,15 @@ function renderizarAtividades() {
 
   galeriaGrid.innerHTML = "";
   atividadesOrdenadas.forEach(([atividade, dados]) => {
+    const { dataFormatada, nome } = separarDataEAtividade(atividade);
     const card = document.createElement("button");
     card.type = "button";
     card.className = "galeria-card";
     card.innerHTML = `
       <img src="${dados.fotos[0].foto}" alt="${atividade}" class="galeria-card-capa">
       <div class="galeria-card-info">
-        <span class="galeria-card-nome">${atividade}</span>
+        ${dataFormatada ? `<span class="galeria-card-data">${dataFormatada}</span>` : ""}
+        <span class="galeria-card-nome">${nome}</span>
         <span class="galeria-card-contagem">${dados.fotos.length} foto(s)</span>
       </div>
     `;
@@ -377,7 +381,6 @@ function renderizarAtividades() {
 // ---------- Nível 3: Fotos da atividade ----------
 function renderizarFotos() {
   renderizarBreadcrumb();
-  renderizarCompartilhar();
 
   const fotos = fotosDoAlunoAtual.filter((f) => (f.atividade || "Sem atividade") === atividadeAtual);
 
@@ -411,7 +414,6 @@ async function abrirModoAtividade() {
   indiceQueryFallbackTurma = false;
 
   galeriaBreadcrumb.hidden = true;
-  galeriaCompartilhar.hidden = true;
   galeriaVazio.hidden = true;
   galeriaGrid.innerHTML = `<p class="empty-state">Carregando atividades...</p>`;
 
@@ -483,13 +485,15 @@ function renderizarAtividadesDaTurma() {
 
   galeriaGrid.innerHTML = "";
   atividadesOrdenadas.forEach(([atividade, dados]) => {
+    const { dataFormatada, nome } = separarDataEAtividade(atividade);
     const card = document.createElement("button");
     card.type = "button";
     card.className = "galeria-card";
     card.innerHTML = `
       <img src="${dados.fotos[0].foto}" alt="${atividade}" class="galeria-card-capa">
       <div class="galeria-card-info">
-        <span class="galeria-card-nome">${atividade}</span>
+        ${dataFormatada ? `<span class="galeria-card-data">${dataFormatada}</span>` : ""}
+        <span class="galeria-card-nome">${nome}</span>
         <span class="galeria-card-contagem">${dados.fotos.length} foto(s) · ${dados.alunos.size} aluno(s)</span>
       </div>
     `;
@@ -548,127 +552,6 @@ async function abrirAtividadeDaTurma(atividade) {
     console.error(erro);
     galeriaGrid.innerHTML = `<p class="empty-state">Erro ao carregar as fotos: ${erro.message || erro}.</p>`;
   }
-}
-
-// ---------- Compartilhar pasta do aluno com os pais (por e-mail específico) ----------
-async function renderizarCompartilhar() {
-  galeriaCompartilhar.hidden = false;
-  galeriaCompartilhar.innerHTML = `<p class="card-subtitle">Carregando...</p>`;
-
-  const alunoSnap = await getDoc(doc(db, "alunos", alunoAtual.id));
-  const emails = (alunoSnap.exists() && alunoSnap.data().emailsResponsaveis) || [];
-
-  galeriaCompartilhar.innerHTML = `
-    <p class="card-subtitle" style="margin-bottom: 8px;">
-      Compartilhar as fotos de ${alunoAtual.nome} por e-mail específico - só quem estiver logado com essa conta Google consegue ver e baixar, sem poder apagar nada.
-    </p>
-    <div id="galeria-emails-lista">
-      ${emails.map((email) => `
-        <div class="galeria-email-item">
-          <span>${email}</span>
-          <button class="btn-ghost galeria-email-acao-btn" data-email="${email}">Verificando...</button>
-        </div>
-      `).join("")}
-    </div>
-    ${emails.length === 0 ? `<p class="card-subtitle">Nenhum e-mail de responsável cadastrado ainda pra ${alunoAtual.nome}. Adicione abaixo (também salva pro cadastro do aluno).</p>` : ""}
-    <div class="galeria-compartilhar-link">
-      <input type="email" id="galeria-novo-email" placeholder="email-do-responsavel@gmail.com">
-      <button class="btn-ghost" id="galeria-adicionar-email">+ Adicionar e compartilhar</button>
-    </div>
-  `;
-
-  let accessTokenCache = null;
-  let pastaAlunoId = null;
-  async function garantirPastaEToken() {
-    if (!accessTokenCache) accessTokenCache = await garantirTokenAcesso();
-    if (!pastaAlunoId) {
-      const pastaTurma = await obterOuCriarPasta(turmaAtual, obterPastaRaizDaTurma(turmaAtual), accessTokenCache);
-      pastaAlunoId = await obterOuCriarPasta(alunoAtual.nome, pastaTurma, accessTokenCache);
-    }
-    return { accessToken: accessTokenCache, pastaAluno: pastaAlunoId };
-  }
-
-  async function atualizarBotoesDeStatus() {
-    const botoes = [...document.querySelectorAll(".galeria-email-acao-btn")];
-    if (botoes.length === 0) return;
-    try {
-      const { accessToken, pastaAluno } = await garantirPastaEToken();
-      const acessos = await listarAcessosPorEmail(pastaAluno, accessToken);
-      botoes.forEach((botao) => {
-        const email = botao.getAttribute("data-email");
-        const permissao = acessos.find((p) => p.emailAddress?.toLowerCase() === email.toLowerCase());
-        if (permissao) {
-          botao.textContent = "✓ Compartilhado - Remover acesso";
-          botao.dataset.permissaoId = permissao.id;
-        } else {
-          botao.textContent = "Compartilhar";
-          delete botao.dataset.permissaoId;
-        }
-      });
-    } catch (erro) {
-      console.error(erro);
-      botoes.forEach((botao) => { botao.textContent = "Compartilhar"; });
-    }
-  }
-
-  atualizarBotoesDeStatus();
-
-  document.querySelectorAll(".galeria-email-acao-btn").forEach((botao) => {
-    botao.addEventListener("click", async () => {
-      const email = botao.getAttribute("data-email");
-      const textoOriginal = botao.textContent;
-      botao.disabled = true;
-
-      try {
-        const { accessToken, pastaAluno } = await garantirPastaEToken();
-        if (botao.dataset.permissaoId) {
-          if (!confirm(`Remover o acesso de ${email}?`)) {
-            botao.disabled = false;
-            return;
-          }
-          await removerCompartilhamento(pastaAluno, botao.dataset.permissaoId, accessToken);
-        } else {
-          botao.textContent = "Compartilhando...";
-          await compartilharComEmail(pastaAluno, email, accessToken);
-        }
-        await atualizarBotoesDeStatus();
-      } catch (erro) {
-        console.error(erro);
-        alert(`Erro:\n\n${erro.message || erro}`);
-        botao.textContent = textoOriginal;
-      } finally {
-        botao.disabled = false;
-      }
-    });
-  });
-
-  document.getElementById("galeria-adicionar-email").addEventListener("click", async () => {
-    const input = document.getElementById("galeria-novo-email");
-    const email = input.value.trim().toLowerCase();
-    if (!email || !email.includes("@")) {
-      alert("Digite um e-mail válido.");
-      return;
-    }
-
-    const botaoAdicionar = document.getElementById("galeria-adicionar-email");
-    botaoAdicionar.disabled = true;
-    botaoAdicionar.textContent = "Adicionando...";
-
-    try {
-      const novaLista = [...new Set([...emails, email])];
-      await updateDoc(doc(db, "alunos", alunoAtual.id), { emailsResponsaveis: novaLista });
-
-      const { accessToken, pastaAluno } = await garantirPastaEToken();
-      await compartilharComEmail(pastaAluno, email, accessToken);
-
-      renderizarCompartilhar(); // recarrega a lista já com o novo e-mail
-    } catch (erro) {
-      console.error(erro);
-      alert(`Erro ao adicionar/compartilhar:\n\n${erro.message || erro}`);
-      botaoAdicionar.disabled = false;
-      botaoAdicionar.textContent = "+ Adicionar e compartilhar";
-    }
-  });
 }
 
 // ---------- Zoom nas fotos (mesmo padrão da Revisão) ----------

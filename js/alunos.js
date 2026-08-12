@@ -9,7 +9,7 @@
 // rostos). O documento principal "alunos/{id}" guarda só o essencial
 // + uma capa pequena, pra listar rápido sempre.
 
-import { auth, db } from "./firebase-config.js?v=20260804f";
+import { auth, db } from "./firebase-config.js?v=20260812a";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -25,9 +25,9 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260804f";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260804f";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260804f";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812a";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260812a";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812a";
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");
@@ -73,7 +73,6 @@ function preencherTurmas() {
   });
 }
 const fotoInputs = [1, 2, 3].map((n) => document.getElementById(`foto-${n}`));
-const emailsResponsaveisInput = document.getElementById("emails-responsaveis");
 const photoPreviews = [1, 2, 3].map((n) => document.getElementById(`photo-preview-img-${n}`));
 const photoPreviewPlaceholders = [1, 2, 3].map((n) => document.getElementById(`photo-preview-placeholder-${n}`));
 const formError = document.getElementById("form-error");
@@ -182,7 +181,6 @@ async function entrarModoEdicao(id) {
   alunoEmEdicaoId = id;
   nomeInput.value = aluno.nome;
   turmaInput.value = aluno.turma;
-  emailsResponsaveisInput.value = (aluno.emailsResponsaveis || []).join(", ");
 
   formTitle.textContent = `Editando: ${aluno.nome}`;
   submitButtonText.textContent = "Salvar alterações";
@@ -333,11 +331,6 @@ form.addEventListener("submit", async (event) => {
       }
     }
 
-    const emailsResponsaveis = emailsResponsaveisInput.value
-      .split(",")
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean);
-
     const capa = await comprimirCapa(fotos[0]);
 
     // Documento leve (é o que a listagem de Alunos e a Galeria buscam
@@ -345,7 +338,6 @@ form.addEventListener("submit", async (event) => {
     const dadosLeves = {
       nome,
       turma,
-      emailsResponsaveis,
       capa,
       totalFotos: fotos.length,
       segmento: TURMAS.find((t) => t.nome === turma)?.segmento || "desconhecido"

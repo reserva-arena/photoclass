@@ -656,16 +656,28 @@ a.stat-card:hover {
 
 .galeria-card-info {
   padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.galeria-card-data {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-teal);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .galeria-card-nome {
   font-size: 13px;
   font-weight: 600;
   color: var(--color-navy);
-  display: block;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.3;
 }
 
 .galeria-card-contagem {
