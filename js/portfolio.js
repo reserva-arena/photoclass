@@ -10,12 +10,13 @@
 // a professora já tem acesso automático (mesma permissão que ela já
 // tem pra turma dela) - não precisa conceder acesso separado.
 
-import { auth, db } from "./firebase-config.js?v=20260812d";
+import { auth, db } from "./firebase-config.js?v=20260812e";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812d";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812d";
-import { garantirTokenAcesso, obterOuCriarPasta, obterPastaRaizDaTurma, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260812d";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812e";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812e";
+import { garantirTokenAcesso, obterOuCriarPasta, obterPastaRaizDaTurma, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260812e";
+import { abrirCapturaCamera } from "./camera.js?v=20260812e";
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");
@@ -131,6 +132,18 @@ alunoSelect.addEventListener("change", () => {
 
 tituloInput.addEventListener("input", atualizarBotaoEnviar);
 arquivosInput.addEventListener("change", atualizarBotaoEnviar);
+
+// Tirar fotos com a câmera do celular, sem sair do app - depois soma
+// com o que já estiver selecionado no campo de arquivo (se houver)
+document.getElementById("portfolio-camera-btn").addEventListener("click", async () => {
+  const fotosCapturadas = await abrirCapturaCamera();
+  if (fotosCapturadas.length === 0) return;
+
+  const dt = new DataTransfer();
+  [...arquivosInput.files, ...fotosCapturadas].forEach((arquivo) => dt.items.add(arquivo));
+  arquivosInput.files = dt.files;
+  arquivosInput.dispatchEvent(new Event("change"));
+});
 
 function atualizarBotaoEnviar() {
   enviarButton.disabled = !tituloInput.value.trim() || arquivosInput.files.length === 0;

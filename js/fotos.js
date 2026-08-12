@@ -5,7 +5,7 @@
 // direto no navegador do professor - nenhuma foto sai
 // do dispositivo até o momento de salvar.
 
-import { auth, db } from "./firebase-config.js?v=20260812d";
+import { auth, db } from "./firebase-config.js?v=20260812e";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -18,10 +18,11 @@ import {
   addDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812d";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260812d";
-import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260812d";
-import { aprenderComFoto } from "./aprendizado.js?v=20260812d";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812e";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260812e";
+import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260812e";
+import { aprenderComFoto } from "./aprendizado.js?v=20260812e";
+import { abrirCapturaCamera } from "./camera.js?v=20260812e";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 const LIMIAR_RECONHECIMENTO = 0.6; // quanto menor, mais rígido na comparação (acima disso = "não reconhecido")
@@ -252,6 +253,18 @@ fotosInput.addEventListener("change", () => {
   uploadError.hidden = true;
   uploadInfo.hidden = true;
   processButton.disabled = total === 0;
+});
+
+// Tirar fotos com a câmera do celular, sem sair do app - depois soma
+// com o que já estiver selecionado no campo de arquivo (se houver)
+document.getElementById("fotos-camera-btn").addEventListener("click", async () => {
+  const fotosCapturadas = await abrirCapturaCamera();
+  if (fotosCapturadas.length === 0) return;
+
+  const dt = new DataTransfer();
+  [...fotosInput.files, ...fotosCapturadas].forEach((arquivo) => dt.items.add(arquivo));
+  fotosInput.files = dt.files;
+  fotosInput.dispatchEvent(new Event("change"));
 });
 
 // ---------- Carregar modelos do face-api.js ----------

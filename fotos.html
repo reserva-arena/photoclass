@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20260812d">
+  <link rel="stylesheet" href="css/style.css?v=20260812e">
   <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -84,6 +84,7 @@
       <div class="field">
         <label for="fotos-input">Fotos (máximo 50 por vez)</label>
         <input type="file" id="fotos-input" accept="image/*" multiple>
+        <button type="button" id="fotos-camera-btn" class="btn-ghost camera-abrir-btn">📷 Ou tirar fotos agora</button>
       </div>
 
       <p id="upload-info" class="success-message" role="status" hidden></p>
@@ -109,7 +110,7 @@
 
   </main>
 
-  <script type="module" src="js/fotos.js?v=20260812d"></script>
+  <script type="module" src="js/fotos.js?v=20260812e"></script>
   <footer class="app-footer">
     <a href="guia.html" style="color: #fff; text-decoration: underline;">📖 Guia de uso</a> · <strong>PhotoClass</strong> · Dev: Luciano Galdino · Frontend: HTML, CSS, JS · Hospedagem: GitHub Pages · Backend: Firebase + Google Drive
   </footer>
