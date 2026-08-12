@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhotoClass - Portfólio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=20260812d">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-label="Abrir menu">☰</button>
+    <div class="app-header-brand">
+      <img src="img/arena-logo.png" alt="Colégio Arena" class="brand-logo">
+      <div class="app-header-titles">
+        <span class="app-header-title">PhotoClass</span>
+        <span class="app-header-subtitle">Colégio Arena</span>
+      </div>
+    </div>
+    <nav class="app-header-nav">
+      <a href="dashboard.html">Painel</a>
+      <a href="alunos.html">Alunos</a>
+      <a href="fotos.html">Fotos</a>
+      <a href="revisao.html">Revisão</a>
+      <a href="galeria.html">Galeria</a>
+      <a href="portfolio.html" class="active">Portfólio</a>
+      <a href="professores.html" id="nav-professores" hidden>Professoras</a>
+    </nav>
+    <div class="app-header-actions">
+      <button id="view-toggle" class="btn-ghost" hidden></button>
+      <span id="user-email" class="app-header-email"></span>
+      <button id="logout-button" class="btn-ghost">Sair</button>
+    </div>
+  </header>
+
+  <main class="app-main">
+
+    <div id="processing-banner" class="processing-banner" hidden>
+      <p class="processing-banner-warning">⚠️ Não feche esta aba nem saia do app enquanto processa</p>
+      <div class="progress-bar"><div id="progress-bar-fill" class="progress-bar-fill"></div></div>
+      <p id="progress-text" class="progress-text">Preparando...</p>
+    </div>
+
+    <section class="card">
+      <h2>Portfólio do aluno</h2>
+      <p class="card-subtitle">Envie fotos, vídeos ou documentos de tarefas direto pro portfólio de um aluno específico - fica separado das fotos de atividade.</p>
+
+      <div class="field">
+        <label for="portfolio-turma-select">Turma</label>
+        <select id="portfolio-turma-select">
+          <option value="">Carregando turmas...</option>
+        </select>
+      </div>
+
+      <div class="field" id="portfolio-aluno-field" hidden>
+        <label for="portfolio-aluno-select">Aluno</label>
+        <select id="portfolio-aluno-select">
+          <option value="">Selecione o aluno</option>
+        </select>
+      </div>
+
+      <div class="field" id="portfolio-titulo-field" hidden>
+        <label for="portfolio-titulo-input">Título (o que é esse envio?)</label>
+        <input type="text" id="portfolio-titulo-input" placeholder="Ex: Atividade de matemática - Unidade 3">
+      </div>
+
+      <div class="field" id="portfolio-arquivos-field" hidden>
+        <label for="portfolio-arquivos-input">Arquivo(s) - fotos, vídeos ou documentos</label>
+        <input type="file" id="portfolio-arquivos-input" multiple>
+        <p class="card-subtitle" style="margin-top: 4px;">Todos os arquivos selecionados aqui vão pro portfólio do mesmo aluno. Pra outro aluno, faça um novo envio.</p>
+      </div>
+
+      <p id="portfolio-error" class="error-message" role="alert" hidden></p>
+      <p id="portfolio-success" class="success-message" role="status" hidden></p>
+
+      <button id="portfolio-enviar-button" class="btn-primary" hidden disabled>Enviar pro portfólio</button>
+    </section>
+
+  </main>
+
+  <script type="module" src="js/portfolio.js?v=20260812d"></script>
+  <footer class="app-footer">
+    <a href="guia.html" style="color: #fff; text-decoration: underline;">📖 Guia de uso</a> · <strong>PhotoClass</strong> · Dev: Luciano Galdino · Frontend: HTML, CSS, JS · Hospedagem: GitHub Pages · Backend: Firebase + Google Drive
+  </footer>
+</body>
+</html>
