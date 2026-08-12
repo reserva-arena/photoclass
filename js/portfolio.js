@@ -10,13 +10,13 @@
 // a professora já tem acesso automático (mesma permissão que ela já
 // tem pra turma dela) - não precisa conceder acesso separado.
 
-import { auth, db } from "./firebase-config.js?v=20260812h";
+import { auth, db } from "./firebase-config.js?v=20260812i";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { collection, query, where, orderBy, limit, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812h";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812h";
-import { garantirTokenAcesso, obterOuCriarPasta, obterPastaRaizDaTurma, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260812h";
-import { abrirCapturaCamera } from "./camera.js?v=20260812h";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812i";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812i";
+import { garantirTokenAcesso, obterOuCriarPasta, obterPastaRaizDaTurma, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260812i";
+import { abrirCapturaCamera } from "./camera.js?v=20260812i";
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");

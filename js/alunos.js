@@ -9,7 +9,7 @@
 // rostos). O documento principal "alunos/{id}" guarda só o essencial
 // + uma capa pequena, pra listar rápido sempre.
 
-import { auth, db } from "./firebase-config.js?v=20260812h";
+import { auth, db } from "./firebase-config.js?v=20260812i";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection,
@@ -25,9 +25,9 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812h";
-import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260812h";
-import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812h";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812i";
+import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260812i";
+import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812i";
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");
