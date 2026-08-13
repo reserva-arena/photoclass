@@ -102,6 +102,30 @@ function solicitarToken(prompt) {
   });
 }
 
+// Igual garantirTokenAcesso(), mas SEMPRE mostra a tela de escolher
+// conta do Google, mesmo que já exista uma sessão válida em silêncio.
+// Usado nas ações de admin (liberar acesso de professora ao Drive),
+// onde é importante ter certeza visual de qual conta está autorizando -
+// evita reaproveitar sem querer uma conta errada (ex: conta pessoal
+// de testes) que não tem acesso às pastas raiz da escola.
+export async function garantirTokenAcessoComEscolhaDeConta() {
+  tokenAtual = null; // descarta qualquer token guardado, força escolha nova
+  return await solicitarToken("consent");
+}
+
+// Pergunta ao Google qual conta está por trás de um access token -
+// útil pra confirmar (ou diagnosticar erro de) qual conta autorizou
+// uma ação, já que o "hint" só sugere, não garante, a conta usada.
+export async function obterEmailAutorizado(accessToken) {
+  const resposta = await fetch(
+    "https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)",
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!resposta.ok) return null;
+  const dados = await resposta.json();
+  return dados?.user?.emailAddress || null;
+}
+
 // ---------- Pastas (buscar ou criar) ----------
 
 async function buscarPasta(nome, paiId, accessToken) {

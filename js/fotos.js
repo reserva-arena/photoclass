@@ -20,7 +20,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812i";
 import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260812i";
-import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260812i";
+import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260813a";
 import { aprenderComFoto } from "./aprendizado.js?v=20260812i";
 import { abrirCapturaCamera } from "./camera.js?v=20260812i";
 

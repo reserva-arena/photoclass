@@ -30,7 +30,14 @@ import {
 import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260812i";
 import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812i";
 import { aprenderComFoto } from "./aprendizado.js?v=20260812i";
-import { garantirTokenAcesso, obterOuCriarPasta, obterPastaRaizDaTurma, obterModeloDaTurma, concederAcessoEditorPasta, excluirPasta, adicionarMembroDriveCompartilhado, definirEmailUsuario } from "./drive-upload.js?v=20260812i";
+import { garantirTokenAcessoComEscolhaDeConta, obterEmailAutorizado, obterOuCriarPasta, obterPastaRaizDaTurma, obterModeloDaTurma, concederAcessoEditorPasta, excluirPasta, adicionarMembroDriveCompartilhado, definirEmailUsuario } from "./drive-upload.js?v=20260813a";
+
+// Usado em ações de admin (salvar professora, limpar turma) que
+// precisam de acesso à pasta raiz - sempre mostra a tela de escolher
+// conta, pra evitar reaproveitar em silêncio uma conta sem acesso.
+async function garantirTokenAdmin() {
+  return await garantirTokenAcessoComEscolhaDeConta();
+}
 
 // Instância secundária do Firebase, só pra criar o login da professora
 // sem afetar a sessão do admin logado no app principal
@@ -187,13 +194,33 @@ form.addEventListener("submit", async (event) => {
   }
 
   submitButton.disabled = true;
-  submitButtonText.textContent = emailEmEdicao ? "Salvando..." : "Criando login...";
+  submitButtonText.textContent = "Abrindo autorização do Google...";
 
   try {
+    // Pede a autorização do Drive JÁ NO INÍCIO, antes de qualquer outra
+    // coisa - assim o clique do usuário ainda está "fresco" e o navegador
+    // não bloqueia o popup do Google (isso pode acontecer se o popup só
+    // for pedido depois de esperas de rede, como salvar no Firestore).
+    // Também SEMPRE mostra a tela de escolher conta (em vez de reaproveitar
+    // uma sessão em silêncio), pra ter certeza de qual conta está sendo
+    // usada - evita repetir o problema de autorizar com a conta errada
+    // (ex: conta pessoal de testes) sem perceber.
+    let accessToken;
+    let emailAutorizado = null;
+    try {
+      accessToken = await garantirTokenAdmin();
+      emailAutorizado = await obterEmailAutorizado(accessToken);
+    } catch {
+      throw new Error(
+        "A janela de autorização do Google foi fechada ou bloqueada antes de você escolher uma conta. Tente de novo e conclua a escolha da conta no popup do Google."
+      );
+    }
+
     let loginCriadoAgora = false;
 
     // Só tenta criar o login se for um cadastro novo (não em edição)
     if (!emailEmEdicao) {
+      submitButtonText.textContent = "Criando login...";
       try {
         await createUserWithEmailAndPassword(authSecundario, email, gerarSenhaTemporaria());
         await signOutSecundario(authSecundario); // limpa a sessão secundária, sem afetar o admin
@@ -226,9 +253,8 @@ form.addEventListener("submit", async (event) => {
     // ("drive-compartilhado", ainda em uso só nos Anos Iniciais até
     // migrarmos), o acesso é ao Drive inteiro (todas as turmas dele).
     let driveOk = true;
+    let detalheErroDrive = "";
     try {
-      submitButtonText.textContent = "Liberando acesso ao Drive...";
-      const accessToken = await garantirTokenAcesso();
       const drivesCompartilhadosJaFeitos = new Set(); // evita repetir a mesma concessão de drive inteiro
 
       for (const turma of turmas) {
@@ -247,6 +273,7 @@ form.addEventListener("submit", async (event) => {
     } catch (erroDrive) {
       console.error("Erro ao dar acesso ao Drive:", erroDrive);
       driveOk = false;
+      detalheErroDrive = erroDrive?.message || "";
     }
 
     // Manda o e-mail de acesso automaticamente pra quem acabou de ser criada
@@ -258,15 +285,19 @@ form.addEventListener("submit", async (event) => {
       }
     }
 
+    const contaUsadaTexto = emailAutorizado ? ` (conta usada: ${emailAutorizado})` : "";
+
     if (!driveOk) {
       mostrarErro(
-        `Turmas salvas e login pronto, mas não consegui liberar o acesso ao Drive automaticamente. Você pode compartilhar a pasta da turma manualmente com ${email} direto pelo Google Drive.`
+        `Turmas salvas e login pronto, mas não consegui liberar o acesso ao Drive automaticamente${contaUsadaTexto}. ` +
+        `Provavelmente essa conta não tem acesso à pasta raiz da escola no Drive - refaça e, na tela do Google, escolha a conta certa (a que tem acesso às pastas da escola). ` +
+        (detalheErroDrive ? `Detalhe técnico: ${detalheErroDrive}` : "")
       );
     } else {
       mostrarSucesso(
-        loginCriadoAgora
+        (loginCriadoAgora
           ? `Tudo pronto! Login criado, turmas liberadas e acesso ao Drive concedido pra ${email}. Ela já recebeu o e-mail pra criar a senha.`
-          : `Turmas e acesso ao Drive de ${email} atualizados com sucesso!`
+          : `Turmas e acesso ao Drive de ${email} atualizados com sucesso!`) + contaUsadaTexto
       );
     }
     sairModoEdicao();
@@ -457,8 +488,8 @@ limparTurmaBotao.addEventListener("click", async () => {
   try {
     // 1. Apaga a pasta inteira da turma no Drive (leva junto tudo que
     // tem dentro - alunos, atividades, fotos)
-    limparTurmaStatus.textContent = "Conectando ao Drive...";
-    const accessToken = await garantirTokenAcesso();
+    limparTurmaStatus.textContent = "Conectando ao Drive (escolha a conta com acesso à pasta raiz)...";
+    const accessToken = await garantirTokenAdmin();
     const pastaTurmaId = await obterOuCriarPasta(turma, obterPastaRaizDaTurma(turma), accessToken);
     limparTurmaStatus.textContent = "Apagando pasta no Drive...";
     await excluirPasta(pastaTurmaId, accessToken);
