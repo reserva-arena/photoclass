@@ -20,7 +20,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812i";
 import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260812i";
-import { garantirTokenAcesso, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260813a";
+import { garantirTokenAcesso, garantirTokenAcessoComEscolhaDeConta, obterEmailAutorizado, obterPastaDestino, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260813a";
 import { aprenderComFoto } from "./aprendizado.js?v=20260812i";
 import { abrirCapturaCamera } from "./camera.js?v=20260812i";
 
@@ -713,10 +713,15 @@ saveButton.addEventListener("click", async () => {
   iniciarProgresso();
   atualizarProgresso(3, "Conectando ao Google Drive...");
 
+  // Guardado fora do try pra poder usar no catch (diagnóstico de qual
+  // conta autorizou), mesmo que o erro aconteça depois de obter o token
+  let accessTokenParaDiagnostico = null;
+
   try {
     // Pede autorização à professora pra subir arquivos no Drive
     // (aparece uma janela do Google só na primeira vez da sessão)
     const accessToken = await garantirTokenAcesso();
+    accessTokenParaDiagnostico = accessToken;
 
     const turma = turmaSelect.value;
     const dataHoje = new Date().toISOString().slice(0, 10); // AAAA-MM-DD
@@ -872,7 +877,31 @@ saveButton.addEventListener("click", async () => {
     carregarAtividadesRecentes(turma);
   } catch (erro) {
     console.error(erro);
-    alert(`Erro ao salvar as fotos no Drive:\n\n${erro.message || erro}\n\nSe o erro mencionar permissão, pode ser preciso reautorizar o acesso ao Drive (saia e entre de novo).`);
+
+    // Descobre qual conta Google autorizou (se algum token chegou a ser
+    // obtido), pra deixar claro na mensagem se é a conta errada - é a causa
+    // mais comum desse tipo de erro ("File not found" numa pasta que existe)
+    let emailAutorizado = null;
+    if (accessTokenParaDiagnostico) {
+      emailAutorizado = await obterEmailAutorizado(accessTokenParaDiagnostico);
+    }
+
+    const linhaConta = emailAutorizado
+      ? `\n\nConta do Google autorizada no momento: ${emailAutorizado}\n(se esse não for o e-mail da escola, é isso - toque em OK e troque de conta a seguir)`
+      : "";
+
+    const quiserTrocarDeConta = confirm(
+      `Erro ao salvar as fotos no Drive:\n\n${erro.message || erro}${linhaConta}\n\nDeseja trocar de conta agora e tentar de novo?`
+    );
+
+    if (quiserTrocarDeConta) {
+      try {
+        await garantirTokenAcessoComEscolhaDeConta();
+        alert("Conta atualizada. Toque em \"Salvar fotos confirmadas\" de novo pra tentar salvar as fotos.");
+      } catch {
+        alert("Não foi possível trocar de conta. Tente sair e entrar de novo no PhotoClass.");
+      }
+    }
   } finally {
     saveButton.disabled = false;
     saveButton.textContent = "Salvar fotos confirmadas";
