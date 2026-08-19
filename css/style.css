@@ -1101,6 +1101,36 @@ select {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
+/* ---------- Troca de senha obrigatória (primeiro acesso) ---------- */
+
+.senha-temp-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 20, 15, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 300;
+}
+
+.senha-temp-card {
+  background: var(--color-white);
+  border-radius: var(--radius);
+  padding: 2rem;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.senha-temp-card h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--color-navy);
+  margin-bottom: 8px;
+}
+
 /* ---------- Captura pela câmera (estilo app de scanner) ---------- */
 
 .camera-overlay {

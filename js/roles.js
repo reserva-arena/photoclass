@@ -8,7 +8,8 @@
 // pra elas (coleção "professores" no Firestore).
 
 import { db } from "./firebase-config.js?v=20260812i";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { updatePassword } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
 const ADMIN_EMAILS = [
   "luciano.galdino@colegioarena.com.br"
@@ -100,6 +101,100 @@ export function configurarMenuMobile() {
   document.addEventListener("click", (evento) => {
     if (!nav.contains(evento.target) && evento.target !== botao) {
       nav.classList.remove("aberto");
+    }
+  });
+}
+
+// ---------- Troca de senha obrigatória no primeiro acesso ----------
+// Toda professora nova recebe a senha inicial "123456" (ver professores.js).
+// Aqui a gente confere se essa conta ainda está com a flag de senha
+// temporária no Firestore e, se estiver, bloqueia o app inteiro atrás de
+// uma tela pedindo pra ela definir uma senha própria antes de continuar.
+// Chamado sempre em dashboard.js, que é a primeira tela depois do login.
+export async function bloquearSeSenhaTemporaria(user) {
+  if (isAdminEmail(user.email)) return; // conta admin nunca usa senha temporária
+
+  let precisaTrocar = false;
+  try {
+    const snap = await getDoc(doc(db, "professores", user.email));
+    precisaTrocar = snap.exists() && snap.data().senhaTemporaria === true;
+  } catch (erro) {
+    console.error("Não foi possível verificar a senha temporária:", erro);
+    return; // se a checagem falhar, não trava o acesso - melhor deixar entrar
+  }
+
+  if (precisaTrocar) mostrarOverlayTrocaSenha(user);
+}
+
+function mostrarOverlayTrocaSenha(user) {
+  const overlay = document.createElement("div");
+  overlay.className = "senha-temp-overlay";
+  overlay.innerHTML = `
+    <div class="senha-temp-card">
+      <h2>Defina sua senha</h2>
+      <p class="card-subtitle">Você entrou com a senha inicial fornecida pela escola. Por segurança, defina agora uma senha só sua (mínimo 6 caracteres) antes de continuar.</p>
+      <form id="senha-temp-form" novalidate>
+        <div class="field">
+          <label for="senha-temp-nova">Nova senha</label>
+          <input type="password" id="senha-temp-nova" autocomplete="new-password" required minlength="6" placeholder="Mínimo 6 caracteres">
+        </div>
+        <div class="field">
+          <label for="senha-temp-confirmar">Confirmar nova senha</label>
+          <input type="password" id="senha-temp-confirmar" autocomplete="new-password" required minlength="6" placeholder="Digite de novo">
+        </div>
+        <p id="senha-temp-erro" class="error-message" role="alert" hidden></p>
+        <button type="submit" id="senha-temp-botao" class="btn-primary">Salvar nova senha</button>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const form = overlay.querySelector("#senha-temp-form");
+  const erroBox = overlay.querySelector("#senha-temp-erro");
+  const botao = overlay.querySelector("#senha-temp-botao");
+
+  form.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    erroBox.hidden = true;
+
+    const nova = overlay.querySelector("#senha-temp-nova").value;
+    const confirmar = overlay.querySelector("#senha-temp-confirmar").value;
+
+    if (nova.length < 6) {
+      erroBox.textContent = "A senha precisa ter pelo menos 6 caracteres.";
+      erroBox.hidden = false;
+      return;
+    }
+    if (nova !== confirmar) {
+      erroBox.textContent = "As senhas digitadas não são iguais.";
+      erroBox.hidden = false;
+      return;
+    }
+    if (nova === "123456") {
+      erroBox.textContent = "Escolha uma senha diferente da senha inicial.";
+      erroBox.hidden = false;
+      return;
+    }
+
+    botao.disabled = true;
+    botao.textContent = "Salvando...";
+
+    try {
+      await updatePassword(user, nova);
+      await setDoc(doc(db, "professores", user.email), { senhaTemporaria: false }, { merge: true });
+      overlay.remove();
+    } catch (erro) {
+      console.error(erro);
+      if (erro.code === "auth/requires-recent-login") {
+        erroBox.textContent = "Por segurança, saia e entre de novo com a senha inicial (123456) antes de trocar a senha.";
+      } else if (erro.code === "auth/weak-password") {
+        erroBox.textContent = "Senha muito fraca. Use pelo menos 6 caracteres.";
+      } else {
+        erroBox.textContent = "Não foi possível salvar a nova senha. Tente novamente.";
+      }
+      erroBox.hidden = false;
+      botao.disabled = false;
+      botao.textContent = "Salvar nova senha";
     }
   });
 }

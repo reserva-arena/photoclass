@@ -27,7 +27,7 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260812i";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260819a";
 import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812i";
 import { aprenderComFoto } from "./aprendizado.js?v=20260812i";
 import { garantirTokenAcessoComEscolhaDeConta, obterEmailAutorizado, obterOuCriarPasta, obterPastaRaizDaTurma, obterModeloDaTurma, concederAcessoEditorPasta, excluirPasta, adicionarMembroDriveCompartilhado, definirEmailUsuario } from "./drive-upload.js?v=20260813a";
@@ -44,11 +44,12 @@ async function garantirTokenAdmin() {
 const appSecundario = initializeApp(firebaseConfig, "criar-professora");
 const authSecundario = getAuth(appSecundario);
 
-// Gera uma senha temporária aleatória (a professora nunca vai usar essa -
-// ela cria a senha dela mesma pelo e-mail de acesso)
-function gerarSenhaTemporaria() {
-  return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
-}
+// Senha inicial fixa dada a toda professora nova. Ela é obrigada a trocar
+// por uma senha própria no primeiro login (ver roles.js -> bloquearSeSenhaTemporaria).
+// Antes o app gerava uma senha aleatória e mandava um e-mail de redefinição,
+// mas o e-mail às vezes caía no spam ou não chegava - com senha fixa + troca
+// obrigatória, o primeiro acesso não depende de e-mail nenhum chegar.
+const SENHA_INICIAL = "123456";
 
 // ---------- Elementos ----------
 const userEmailLabel = document.getElementById("user-email");
@@ -222,7 +223,7 @@ form.addEventListener("submit", async (event) => {
     if (!emailEmEdicao) {
       submitButtonText.textContent = "Criando login...";
       try {
-        await createUserWithEmailAndPassword(authSecundario, email, gerarSenhaTemporaria());
+        await createUserWithEmailAndPassword(authSecundario, email, SENHA_INICIAL);
         await signOutSecundario(authSecundario); // limpa a sessão secundária, sem afetar o admin
         loginCriadoAgora = true;
       } catch (erroAuth) {
@@ -242,7 +243,7 @@ form.addEventListener("submit", async (event) => {
       {
         turmas,
         atualizadoEm: serverTimestamp(),
-        ...(emailEmEdicao ? {} : { criadoEm: serverTimestamp() })
+        ...(emailEmEdicao ? {} : { criadoEm: serverTimestamp(), senhaTemporaria: true })
       },
       { merge: true }
     );
@@ -276,15 +277,6 @@ form.addEventListener("submit", async (event) => {
       detalheErroDrive = erroDrive?.message || "";
     }
 
-    // Manda o e-mail de acesso automaticamente pra quem acabou de ser criada
-    if (loginCriadoAgora) {
-      try {
-        await sendPasswordResetEmail(auth, email);
-      } catch {
-        // Se falhar o envio do e-mail, não bloqueia o cadastro - dá pra reenviar depois
-      }
-    }
-
     const contaUsadaTexto = emailAutorizado ? ` (conta usada: ${emailAutorizado})` : "";
 
     if (!driveOk) {
@@ -296,7 +288,7 @@ form.addEventListener("submit", async (event) => {
     } else {
       mostrarSucesso(
         (loginCriadoAgora
-          ? `Tudo pronto! Login criado, turmas liberadas e acesso ao Drive concedido pra ${email}. Ela já recebeu o e-mail pra criar a senha.`
+          ? `Tudo pronto! Login criado e acesso ao Drive concedido pra ${email}. Senha inicial: ${SENHA_INICIAL} - ela vai ser obrigada a trocar por uma senha própria no primeiro acesso.`
           : `Turmas e acesso ao Drive de ${email} atualizados com sucesso!`) + contaUsadaTexto
       );
     }

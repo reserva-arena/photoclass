@@ -16,7 +16,7 @@ import {
   where,
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260812i";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas, bloquearSeSenhaTemporaria } from "./roles.js?v=20260819a";
 import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260812i";
 
 const userEmailLabel = document.getElementById("user-email");
@@ -40,6 +40,7 @@ onAuthStateChanged(auth, (user) => {
     configurarAlternadorVisao(user.email);
     configurarMenuMobile();
     configurarNavProfessores(user.email);
+    bloquearSeSenhaTemporaria(user);
 
     const primeiroNome = user.email.split("@")[0].split(".")[0];
     welcomeTitle.textContent = `Bem-vindo(a), ${primeiroNome.charAt(0).toUpperCase() + primeiroNome.slice(1)}!`;
