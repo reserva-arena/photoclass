@@ -18,6 +18,7 @@ import {
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260819a";
+import { TURMAS } from "./turmas.js?v=20260812i";
 import {
   garantirTokenAcesso,
   obterOuCriarPasta,
@@ -116,18 +117,21 @@ function preencherTurmas() {
       galeriaTurmaSelect.appendChild(option);
     });
   } else {
-    // Admin: descobre as turmas que já têm alguma foto confirmada
-    getDocs(query(collection(db, "fotos"), where("pendente", "==", false))).then((snapshot) => {
-      const turmasComFoto = new Set();
-      snapshot.forEach((docSnap) => turmasComFoto.add(docSnap.data().turma));
-      galeriaTurmaSelect.innerHTML = `<option value="">Selecione uma turma</option>`;
-      [...turmasComFoto].sort().forEach((turma) => {
+    // Admin: mostra todas as turmas da escola (lista fixa de turmas.js) -
+    // antes isso vinha de uma busca em TODA a coleção "fotos" só pra
+    // descobrir quais turmas tinham foto, o que ficava mais lento a cada
+    // foto nova cadastrada e, sem tratamento de erro, às vezes falhava
+    // em silêncio e deixava o campo "Turma" sem nenhuma opção.
+    galeriaTurmaSelect.innerHTML = `<option value="">Selecione uma turma</option>`;
+    [...TURMAS]
+      .map((t) => t.nome)
+      .sort()
+      .forEach((turma) => {
         const option = document.createElement("option");
         option.value = turma;
         option.textContent = turma;
         galeriaTurmaSelect.appendChild(option);
       });
-    });
   }
 }
 
