@@ -858,6 +858,7 @@ a.stat-card:hover {
   color: var(--color-teal);
   text-decoration: none;
   margin-bottom: 14px;
+  grid-column: 1 / -1;
 }
 
 .galeria-modo-toggle {

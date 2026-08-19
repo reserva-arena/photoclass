@@ -463,8 +463,11 @@ function renderizarFotos() {
     ? `<a href="https://drive.google.com/drive/folders/${pastaId}" target="_blank" rel="noopener" class="galeria-abrir-drive">📁 Abrir esta pasta no Google Drive (baixar tudo)</a>`
     : "";
 
-  galeriaGrid.innerHTML = linkPasta + `<div class="galeria-grid" id="galeria-fotos-grid"></div>`;
-  const grid = document.getElementById("galeria-fotos-grid");
+  // As fotos entram direto como filhas do grid principal (#galeria-grid) -
+  // não cria outro grid aninhado aqui dentro, senão o navegador trata esse
+  // grid de fotos como se fosse uma única célula estreita do grid de fora
+  // (é isso que fazia as fotos ficarem uma em cima da outra, espremidas).
+  galeriaGrid.innerHTML = linkPasta;
 
   fotos.forEach((foto) => {
     const wrapper = document.createElement("div");
@@ -473,7 +476,7 @@ function renderizarFotos() {
       <img src="${foto.foto}" alt="Foto de ${alunoAtual.nome}" class="js-abrir-foto-galeria">
       ${foto.driveViewLink ? `<a href="${foto.driveViewLink}" target="_blank" rel="noopener" class="galeria-foto-drive-link">Abrir no Drive</a>` : ""}
     `;
-    grid.appendChild(wrapper);
+    galeriaGrid.appendChild(wrapper);
   });
 }
 
@@ -644,8 +647,7 @@ async function abrirAtividadeDaTurma(atividade) {
       fotos.push({ id: docSnap.id, ...dados });
     });
 
-    galeriaGrid.innerHTML = `<div class="galeria-grid" id="galeria-fotos-grid"></div>`;
-    const grid = document.getElementById("galeria-fotos-grid");
+    galeriaGrid.innerHTML = "";
 
     fotos.forEach((foto) => {
       const wrapper = document.createElement("div");
@@ -655,7 +657,7 @@ async function abrirAtividadeDaTurma(atividade) {
         <span class="galeria-foto-nome-tag">${foto.alunoNome || "?"}</span>
         ${foto.driveViewLink ? `<a href="${foto.driveViewLink}" target="_blank" rel="noopener" class="galeria-foto-drive-link">Abrir no Drive</a>` : ""}
       `;
-      grid.appendChild(wrapper);
+      galeriaGrid.appendChild(wrapper);
     });
   } catch (erro) {
     console.error(erro);
