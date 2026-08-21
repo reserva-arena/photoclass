@@ -27,7 +27,7 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260819a";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260819b";
 import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812i";
 import { aprenderComFoto } from "./aprendizado.js?v=20260812i";
 import { garantirTokenAcessoComEscolhaDeConta, obterEmailAutorizado, obterOuCriarPasta, obterPastaRaizDaTurma, obterModeloDaTurma, concederAcessoEditorPasta, excluirPasta, adicionarMembroDriveCompartilhado, definirEmailUsuario } from "./drive-upload.js?v=20260813a";

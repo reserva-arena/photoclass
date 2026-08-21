@@ -180,8 +180,25 @@ function mostrarOverlayTrocaSenha(user) {
     botao.textContent = "Salvando...";
 
     try {
+      // A troca de senha em si (Firebase Auth) é o que realmente importa
+      // pra segurança - isso acontece primeiro e sozinho, fora do try
+      // de gravar a "flag" no Firestore. Se der erro AQUI, a senha não
+      // mudou de verdade e a gente trava a professora com uma mensagem
+      // clara. Se der erro só depois (gravando a flag), a senha já mudou
+      // e não faz sentido travar nem assustar ela com "tente novamente".
       await updatePassword(user, nova);
-      await setDoc(doc(db, "professores", user.email), { senhaTemporaria: false }, { merge: true });
+
+      try {
+        await setDoc(doc(db, "professores", user.email), { senhaTemporaria: false }, { merge: true });
+      } catch (erroFlag) {
+        // Não bloqueia o acesso - a senha já foi trocada de verdade.
+        // Provavelmente as regras do Firestore não deixam a professora
+        // escrever no próprio documento em "professores" ainda; até isso
+        // ser ajustado, essa tela vai voltar a aparecer no próximo login,
+        // mas sem impedir o uso do app.
+        console.warn("Senha trocada com sucesso, mas não consegui gravar a confirmação no Firestore:", erroFlag);
+      }
+
       overlay.remove();
     } catch (erro) {
       console.error(erro);

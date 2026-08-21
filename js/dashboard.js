@@ -16,7 +16,7 @@ import {
   where,
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas, bloquearSeSenhaTemporaria } from "./roles.js?v=20260819a";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas, bloquearSeSenhaTemporaria } from "./roles.js?v=20260819b";
 import { mostrarAlertaPendentes } from "./alerta-pendentes.js?v=20260812i";
 
 const userEmailLabel = document.getElementById("user-email");

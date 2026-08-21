@@ -17,7 +17,7 @@ import {
   startAfter,
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260819a";
+import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260819b";
 import { TURMAS } from "./turmas.js?v=20260812i";
 import {
   garantirTokenAcesso,
