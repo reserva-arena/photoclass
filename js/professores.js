@@ -30,7 +30,7 @@ import {
 import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260819b";
 import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812i";
 import { aprenderComFoto } from "./aprendizado.js?v=20260812i";
-import { garantirTokenAcessoComEscolhaDeConta, obterEmailAutorizado, obterOuCriarPasta, obterPastaRaizDaTurma, obterModeloDaTurma, concederAcessoEditorPasta, excluirPasta, adicionarMembroDriveCompartilhado, definirEmailUsuario } from "./drive-upload.js?v=20260813a";
+import { garantirTokenAcessoComEscolhaDeConta, obterEmailAutorizado, obterOuCriarPasta, obterPastaRaizDaTurma, obterModeloDaTurma, concederAcessoEditorPasta, excluirPasta, adicionarMembroDriveCompartilhado, registrarPastaTurma, definirEmailUsuario } from "./drive-upload.js?v=20260819c";
 
 // Usado em ações de admin (salvar professora, limpar turma) que
 // precisam de acesso à pasta raiz - sempre mostra a tela de escolher
@@ -266,6 +266,10 @@ form.addEventListener("submit", async (event) => {
           submitButtonText.textContent = `Liberando acesso a ${turma}...`;
           const pastaTurma = await obterOuCriarPasta(turma, raizId, accessToken);
           await concederAcessoEditorPasta(pastaTurma, email, accessToken);
+          // Guarda o ID no Firestore - é assim que a professora vai achar
+          // a própria pasta sem precisar de acesso à raiz do segmento
+          // (ver comentário em drive-upload.js -> obterPastaTurmaConhecida)
+          await registrarPastaTurma(turma, pastaTurma);
         } else if (!drivesCompartilhadosJaFeitos.has(raizId)) {
           await adicionarMembroDriveCompartilhado(raizId, email, accessToken);
           drivesCompartilhadosJaFeitos.add(raizId);

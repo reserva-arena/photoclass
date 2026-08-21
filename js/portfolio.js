@@ -15,7 +15,7 @@ import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/
 import { collection, query, where, orderBy, limit, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, obterTurmasPermitidas } from "./roles.js?v=20260819b";
 import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812i";
-import { garantirTokenAcesso, obterOuCriarPasta, obterPastaRaizDaTurma, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260813a";
+import { garantirTokenAcesso, obterOuCriarPasta, obterPastaRaizDaTurma, obterPastaTurmaConhecida, registrarPastaTurma, enviarArquivo, definirEmailUsuario } from "./drive-upload.js?v=20260819c";
 import { abrirCapturaCamera } from "./camera.js?v=20260812i";
 
 // ---------- Elementos ----------
@@ -269,7 +269,11 @@ enviarButton.addEventListener("click", async () => {
       pastaEnvio = tituloExistenteSelect.value;
     } else {
       const raizId = obterPastaRaizDaTurma(turma);
-      const pastaTurma = await obterOuCriarPasta(turma, raizId, accessToken);
+      let pastaTurma = await obterPastaTurmaConhecida(turma);
+      if (!pastaTurma) {
+        pastaTurma = await obterOuCriarPasta(turma, raizId, accessToken);
+        registrarPastaTurma(turma, pastaTurma);
+      }
       const pastaPortfolio = await obterOuCriarPasta("Registros do Aluno", pastaTurma, accessToken);
       const pastaAluno = await obterOuCriarPasta(alunoNome, pastaPortfolio, accessToken);
       const dataHoje = new Date().toISOString().slice(0, 10);

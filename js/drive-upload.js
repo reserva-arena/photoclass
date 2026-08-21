@@ -11,6 +11,8 @@
 
 import { DRIVE_CONFIG } from "./drive-config.js?v=20260812i";
 import { TURMAS } from "./turmas.js?v=20260812i";
+import { db } from "./firebase-config.js?v=20260812i";
+import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const PASTA_MIME = "application/vnd.google-apps.folder";
 
@@ -179,6 +181,40 @@ export async function obterOuCriarPasta(nome, paiId, accessToken) {
   return pastaId;
 }
 
+// ---------- ID da pasta de cada turma, guardado no Firestore ----------
+// Por que isso existe: pra achar/criar a pasta de uma turma, o Drive
+// precisa que quem pergunta tenha acesso à pasta RAIZ do segmento (é
+// assim que a busca "existe uma pasta chamada X aqui dentro?" funciona).
+// Só que a professora só recebe acesso à pasta da turma dela mesma, não
+// à raiz do segmento inteiro (senão ela enxergaria as turmas de todas
+// as outras professoras). Resultado: a professora nunca conseguiria
+// encontrar a própria pasta sozinha, mesmo já tendo acesso a ela.
+//
+// Solução: quando o Admin cadastra a professora (e tem acesso total à
+// raiz), a gente guarda o ID da pasta da turma no Firestore. Na hora de
+// subir fotos, a professora lê esse ID direto do Firestore - sem nunca
+// precisar acessar a pasta raiz do segmento.
+export async function obterPastaTurmaConhecida(turma) {
+  try {
+    const snap = await getDoc(doc(db, "pastasTurma", turma));
+    return snap.exists() ? snap.data().pastaId || null : null;
+  } catch (erro) {
+    console.warn(`Não consegui ler a pasta conhecida da turma "${turma}" no Firestore:`, erro);
+    return null;
+  }
+}
+
+export async function registrarPastaTurma(turma, pastaId) {
+  try {
+    await setDoc(doc(db, "pastasTurma", turma), { pastaId, atualizadoEm: serverTimestamp() }, { merge: true });
+  } catch (erro) {
+    // Não impede o cadastro de continuar - só significa que a próxima
+    // professora dessa turma vai cair no caminho antigo (buscar pela
+    // raiz) até isso ser gravado com sucesso alguma vez.
+    console.warn(`Não consegui salvar a pasta conhecida da turma "${turma}" no Firestore:`, erro);
+  }
+}
+
 // Cada segmento (Educação Infantil, Fundamental 1...) tem sua própria
 // pasta raiz - essa função descobre qual usar a partir do nome da turma
 export function obterPastaRaizDaTurma(turma) {
@@ -200,7 +236,17 @@ export function obterModeloDaTurma(turma) {
 // Raiz > Turma > "Não identificados" > Atividade
 // quando ainda não sabemos de qual aluno é a foto.
 export async function obterPastaDestino({ turma, alunoNome, pendente, atividade }, accessToken) {
-  const pastaTurma = await obterOuCriarPasta(turma, obterPastaRaizDaTurma(turma), accessToken);
+  // Tenta usar o ID já conhecido da pasta da turma (gravado pelo Admin no
+  // cadastro) - assim a professora nunca precisa de acesso à pasta raiz
+  // do segmento, só à pasta da própria turma. Só cai no caminho antigo
+  // (buscar pela raiz) se ainda não tiver esse ID salvo.
+  let pastaTurma = await obterPastaTurmaConhecida(turma);
+  if (!pastaTurma) {
+    pastaTurma = await obterOuCriarPasta(turma, obterPastaRaizDaTurma(turma), accessToken);
+    // Já aproveita e guarda pra próxima vez (qualquer professora com
+    // acesso à turma pode gravar isso, não só o Admin)
+    registrarPastaTurma(turma, pastaTurma);
+  }
 
   const pastaAlunoOuPendentes =
     pendente || !alunoNome
