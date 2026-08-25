@@ -67,6 +67,9 @@ const submitButtonText = document.getElementById("submit-button-text");
 
 const professoresList = document.getElementById("professores-list");
 const professoresCount = document.getElementById("professores-count");
+const diagnosticoPastasCard = document.getElementById("diagnostico-pastas-card");
+const diagnosticoPastasTexto = document.getElementById("diagnostico-pastas-texto");
+const diagnosticoPastasList = document.getElementById("diagnostico-pastas-list");
 
 let emailEmEdicao = null; // null = novo cadastro; senão, e-mail sendo editado
 const professoresCache = new Map(); // email -> { turmas }
@@ -388,10 +391,79 @@ function carregarProfessores() {
         await deleteDoc(doc(db, "professores", email));
       });
     });
+
+    verificarPastasFaltando();
   }, (erro) => {
     console.error(erro);
     professoresList.innerHTML = `<p class="empty-state">Não foi possível carregar. Verifique as regras do Firestore.</p>`;
   });
+}
+
+// ---------- Diagnóstico: turmas com professora liberada mas sem pasta
+// do Drive salva no Firestore ainda (cadastros antigos, de antes desse
+// mecanismo existir - ver drive-upload.js -> obterPastaTurmaConhecida) ----------
+async function verificarPastasFaltando() {
+  try {
+    // Turma -> lista de e-mails de professoras que dependem dela
+    const turmasEmUso = new Map();
+    professoresCache.forEach((dados, email) => {
+      (dados.turmas || []).forEach((turma) => {
+        if (!turmasEmUso.has(turma)) turmasEmUso.set(turma, []);
+        turmasEmUso.get(turma).push(email);
+      });
+    });
+
+    if (turmasEmUso.size === 0) {
+      diagnosticoPastasCard.hidden = true;
+      return;
+    }
+
+    const snapshotPastas = await getDocs(collection(db, "pastasTurma"));
+    const turmasComPasta = new Set();
+    snapshotPastas.forEach((docSnap) => turmasComPasta.add(docSnap.id));
+
+    const turmasFaltando = [...turmasEmUso.keys()].filter((turma) => !turmasComPasta.has(turma));
+
+    if (turmasFaltando.length === 0) {
+      diagnosticoPastasCard.hidden = true;
+      return;
+    }
+
+    diagnosticoPastasCard.hidden = false;
+    diagnosticoPastasTexto.textContent =
+      `${turmasFaltando.length} turma(s) já liberada(s) pra alguma professora, mas ainda sem o ID da pasta salvo no Firestore. ` +
+      `Isso vai dar erro "File not found" na primeira vez que ela tentar subir fotos. ` +
+      `Basta editar e salvar de novo (sem mudar nada) o cadastro de qualquer uma das professoras listadas pra corrigir.`;
+    diagnosticoPastasList.innerHTML = "";
+
+    turmasFaltando.sort().forEach((turma) => {
+      const emails = turmasEmUso.get(turma);
+      const item = document.createElement("div");
+      item.className = "professor-item";
+      item.innerHTML = `
+        <div>
+          <p class="professor-email">${turma}</p>
+          <p class="professor-turmas">Professora(s): ${emails.join(", ")}</p>
+        </div>
+        <div class="professor-actions">
+          <button type="button" class="btn-ghost diagnostico-corrigir" data-email="${emails[0]}">Editar ${emails[0]}</button>
+        </div>
+      `;
+      diagnosticoPastasList.appendChild(item);
+    });
+
+    document.querySelectorAll(".diagnostico-corrigir").forEach((botao) => {
+      botao.addEventListener("click", () => {
+        entrarModoEdicao(botao.getAttribute("data-email"));
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
+  } catch (erro) {
+    // Diagnóstico é só um "extra" - se falhar (ex: sem permissão de
+    // leitura ainda), não deve travar o resto da tela de professoras
+    console.warn("Não consegui checar pastas faltando:", erro);
+    diagnosticoPastasCard.hidden = true;
+  }
 }
 
 // ---------- Aprendizado retroativo ----------
