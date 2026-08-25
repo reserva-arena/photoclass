@@ -43,6 +43,7 @@ export function definirEmailUsuario(email) {
 // Cache em memória das pastas já localizadas/criadas nesta sessão,
 // pra não repetir a mesma busca no Drive várias vezes seguidas
 const cachePastas = new Map(); // chave: "paiId::nome" -> pastaId
+const cachePastaTurmaConhecida = new Map(); // turma -> pastaId (ou null se já checou e não achou)
 
 // ---------- Autorização (OAuth) ----------
 
@@ -195,16 +196,28 @@ export async function obterOuCriarPasta(nome, paiId, accessToken) {
 // subir fotos, a professora lê esse ID direto do Firestore - sem nunca
 // precisar acessar a pasta raiz do segmento.
 export async function obterPastaTurmaConhecida(turma) {
+  // Cache em memória - sem isso, essa consulta ao Firestore rodava de
+  // novo a CADA foto do lote (era o principal motivo do upload ficar
+  // lento depois que passamos a usar esse mecanismo)
+  if (cachePastaTurmaConhecida.has(turma)) return cachePastaTurmaConhecida.get(turma);
+
+  let resultado = null;
   try {
     const snap = await getDoc(doc(db, "pastasTurma", turma));
-    return snap.exists() ? snap.data().pastaId || null : null;
+    resultado = snap.exists() ? snap.data().pastaId || null : null;
   } catch (erro) {
     console.warn(`Não consegui ler a pasta conhecida da turma "${turma}" no Firestore:`, erro);
+    // Não guarda erro no cache - tenta de novo na próxima foto, já que
+    // pode ter sido só uma falha de rede pontual
     return null;
   }
+
+  cachePastaTurmaConhecida.set(turma, resultado);
+  return resultado;
 }
 
 export async function registrarPastaTurma(turma, pastaId) {
+  cachePastaTurmaConhecida.set(turma, pastaId); // atualiza o cache na hora também
   try {
     await setDoc(doc(db, "pastasTurma", turma), { pastaId, atualizadoEm: serverTimestamp() }, { merge: true });
   } catch (erro) {

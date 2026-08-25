@@ -23,7 +23,7 @@ import {
   garantirTokenAcesso,
   obterOuCriarPasta,
   obterPastaRaizDaTurma
-} from "./drive-upload.js?v=20260819c";
+} from "./drive-upload.js?v=20260821c";
 
 const userEmailLabel = document.getElementById("user-email");
 const logoutButton = document.getElementById("logout-button");

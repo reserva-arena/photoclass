@@ -30,7 +30,7 @@ import {
 import { configurarAlternadorVisao, configurarNavProfessores, configurarMenuMobile, estaEmModoAdmin } from "./roles.js?v=20260819b";
 import { TURMAS, NOMES_SEGMENTO } from "./turmas.js?v=20260812i";
 import { aprenderComFoto } from "./aprendizado.js?v=20260812i";
-import { garantirTokenAcessoComEscolhaDeConta, obterEmailAutorizado, obterOuCriarPasta, obterPastaRaizDaTurma, obterModeloDaTurma, concederAcessoEditorPasta, excluirPasta, adicionarMembroDriveCompartilhado, registrarPastaTurma, definirEmailUsuario } from "./drive-upload.js?v=20260819c";
+import { garantirTokenAcessoComEscolhaDeConta, obterEmailAutorizado, obterOuCriarPasta, obterPastaRaizDaTurma, obterModeloDaTurma, concederAcessoEditorPasta, excluirPasta, adicionarMembroDriveCompartilhado, registrarPastaTurma, definirEmailUsuario } from "./drive-upload.js?v=20260821c";
 
 // Usado em ações de admin (salvar professora, limpar turma) que
 // precisam de acesso à pasta raiz - sempre mostra a tela de escolher
