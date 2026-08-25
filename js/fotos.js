@@ -474,62 +474,81 @@ processButton.addEventListener("click", async () => {
     processButtonText.textContent = "Reconhecendo rostos nas fotos...";
     atualizarProgresso(25, `Reconhecendo rostos... (0/${arquivos.length})`);
 
+    const arquivosComErro = [];
+
     for (let i = 0; i < arquivos.length; i++) {
       const arquivo = arquivos[i];
-      const dataUrl = await arquivoParaDataUrl(arquivo);
-      const img = await carregarImagem(dataUrl);
 
-      const deteccoes = await faceapi
-        .detectAllFaces(img, new faceapi.TinyFaceDetectorOptions({ inputSize: RESOLUCAO_DETECCAO }))
-        .withFaceLandmarks()
-        .withFaceDescriptors();
+      // Cada foto é processada isoladamente - se UMA foto tiver problema
+      // (arquivo corrompido, formato não suportado, etc.), pula só ela e
+      // continua com as outras, em vez de perder o lote inteiro
+      try {
+        const dataUrl = await arquivoParaDataUrl(arquivo);
+        const img = await carregarImagem(dataUrl);
 
-      const faces = deteccoes.map((deteccao) => {
-        const melhorMatch = comparador.findBestMatch(deteccao.descriptor);
-        const alunoId = melhorMatch.label === "unknown" ? null : melhorMatch.label;
-        const aluno = alunosDaTurma.find((a) => a.id === alunoId);
-        return {
-          alunoId: aluno ? aluno.id : null,
-          alunoNome: aluno ? aluno.nome : null,
-          distancia: melhorMatch.distance
-        };
-      });
+        const deteccoes = await faceapi
+          .detectAllFaces(img, new faceapi.TinyFaceDetectorOptions({ inputSize: RESOLUCAO_DETECCAO }))
+          .withFaceLandmarks()
+          .withFaceDescriptors();
 
-      // Segurança: se o mesmo aluno "bateu" em mais de um rosto na MESMA
-      // foto, é sinal de erro (a mesma criança não aparece duas vezes na
-      // mesma imagem) - força revisão manual nesses casos, mesmo com
-      // confiança alta
-      const contagemPorAluno = {};
-      faces.forEach((f) => {
-        if (f.alunoId) contagemPorAluno[f.alunoId] = (contagemPorAluno[f.alunoId] || 0) + 1;
-      });
-      faces.forEach((f) => {
-        if (f.alunoId && contagemPorAluno[f.alunoId] > 1) f.duplicadoNaFoto = true;
-      });
+        const faces = deteccoes.map((deteccao) => {
+          const melhorMatch = comparador.findBestMatch(deteccao.descriptor);
+          const alunoId = melhorMatch.label === "unknown" ? null : melhorMatch.label;
+          const aluno = alunosDaTurma.find((a) => a.id === alunoId);
+          return {
+            alunoId: aluno ? aluno.id : null,
+            alunoNome: aluno ? aluno.nome : null,
+            distancia: melhorMatch.distance
+          };
+        });
 
-      // Se não detectou nenhum rosto (óculos, ângulo, contraluz...), não
-      // descarta a foto - mantém como pendente pra identificação manual,
-      // em vez de perder ela
-      if (faces.length === 0) {
-        faces.push({ alunoId: null, alunoNome: null, distancia: 1, semDeteccao: true });
+        // Segurança: se o mesmo aluno "bateu" em mais de um rosto na MESMA
+        // foto, é sinal de erro (a mesma criança não aparece duas vezes na
+        // mesma imagem) - força revisão manual nesses casos, mesmo com
+        // confiança alta
+        const contagemPorAluno = {};
+        faces.forEach((f) => {
+          if (f.alunoId) contagemPorAluno[f.alunoId] = (contagemPorAluno[f.alunoId] || 0) + 1;
+        });
+        faces.forEach((f) => {
+          if (f.alunoId && contagemPorAluno[f.alunoId] > 1) f.duplicadoNaFoto = true;
+        });
+
+        // Se não detectou nenhum rosto (óculos, ângulo, contraluz...), não
+        // descarta a foto - mantém como pendente pra identificação manual,
+        // em vez de perder ela
+        if (faces.length === 0) {
+          faces.push({ alunoId: null, alunoNome: null, distancia: 1, semDeteccao: true });
+        }
+
+        resultadosProcessados.push({
+          arquivoOriginal: arquivo,
+          fotoDataUrl: redimensionar(img),
+          faces
+        });
+      } catch (erroFoto) {
+        console.error(`Erro ao processar a foto "${arquivo.name}":`, erroFoto);
+        arquivosComErro.push(arquivo.name);
       }
-
-      resultadosProcessados.push({
-        arquivoOriginal: arquivo,
-        fotoDataUrl: redimensionar(img),
-        faces
-      });
 
       // 25% a 95% da barra é reservado pro reconhecimento das fotos
       const percentual = 25 + Math.round(((i + 1) / arquivos.length) * 70);
       atualizarProgresso(percentual, `Reconhecendo rostos... (${i + 1}/${arquivos.length})`);
     }
 
+    if (arquivosComErro.length > 0) {
+      uploadError.textContent = `${arquivosComErro.length} foto(s) não puderam ser processadas e foram ignoradas: ${arquivosComErro.join(", ")}. As demais foram processadas normalmente.`;
+      uploadError.hidden = false;
+    }
+
     atualizarProgresso(100, "Concluído!");
     renderizarResultados();
   } catch (erro) {
     console.error(erro);
-    uploadError.textContent = "Ocorreu um erro ao processar as fotos. Tente novamente.";
+    // Mostra o erro de verdade (não só "ocorreu um erro") - sem isso,
+    // não dá pra saber o motivo real quando quem está testando está no
+    // celular e não tem como abrir o console do navegador
+    uploadError.textContent = `Ocorreu um erro ao processar as fotos: ${erro.message || erro}. Tente novamente com menos fotos por vez (ex: 5) pra ver se o problema é uma foto específica.`;
     uploadError.hidden = false;
   } finally {
     processButton.disabled = false;
