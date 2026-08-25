@@ -1132,6 +1132,49 @@ select {
   margin-bottom: 8px;
 }
 
+/* ---------- Aviso de nova versão disponível ---------- */
+
+.aviso-nova-versao-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 20, 15, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 400;
+}
+
+.aviso-nova-versao-card {
+  background: var(--color-white);
+  border-radius: var(--radius);
+  padding: 2rem;
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.aviso-nova-versao-icone {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+.aviso-nova-versao-card h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--color-navy);
+  margin-bottom: 8px;
+}
+
+.aviso-nova-versao-botoes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+}
+
 /* ---------- Captura pela câmera (estilo app de scanner) ---------- */
 
 .camera-overlay {
