@@ -16,6 +16,23 @@
 // ex: a data de hoje). Esse arquivo (version-check.js) não precisa de
 // cache-busting nem de ser tocado a cada deploy - só o version.json.
 
+// O app nunca registrou um Service Worker - mas se algum dia um ficou
+// "grudado" nesse navegador (de uma versão antiga, ou testes anteriores),
+// ele pode continuar interceptando as requisições e quebrando o app com
+// erros como "FetchEvent.respondWith received an error". Como isso não
+// aparece nas configurações comuns do navegador, a gente limpa
+// ativamente aqui, toda vez que o app carrega.
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registros) => {
+    registros.forEach((registro) => registro.unregister());
+  }).catch(() => {});
+}
+if ("caches" in window) {
+  caches.keys().then((nomes) => {
+    nomes.forEach((nome) => caches.delete(nome));
+  }).catch(() => {});
+}
+
 const INTERVALO_VERIFICACAO_MS = 3 * 60 * 1000; // a cada 3 minutos
 
 let versaoCarregada = null;
