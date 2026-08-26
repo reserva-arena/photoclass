@@ -1,6 +1,11 @@
 // ============================================
 // PhotoClass - Aviso de nova versão disponível
 // ============================================
+// IMPORTANTE pra manutenção: esse arquivo (version-check.js) TEM
+// cache-busting na tag <script> dos HTMLs (?v=...) - se editar este
+// arquivo, lembre de atualizar esse ?v= em todos os HTMLs que o
+// referenciam, senão a mudança fica presa em cache no navegador de quem
+// já usou o app antes.
 // Compara periodicamente o version.json publicado no servidor com o que
 // estava lá quando a página foi carregada. Se mudou, é sinal de que uma
 // atualização foi publicada enquanto a pessoa usava o app com a aba
@@ -48,7 +53,12 @@ function mostrarAvisoAtualizacao() {
   document.body.appendChild(overlay);
 
   overlay.querySelector("#aviso-nova-versao-agora").addEventListener("click", () => {
-    window.location.reload();
+    // Um reload() comum às vezes ainda usa arquivos guardados em cache
+    // pelo navegador. Trocando a URL pra uma nunca vista antes (com um
+    // parâmetro novo), o navegador é obrigado a buscar tudo de novo no
+    // servidor, sem chance de pegar versão antiga do cache.
+    const urlSemParametrosAntigos = window.location.origin + window.location.pathname;
+    window.location.href = `${urlSemParametrosAntigos}?_atualizado=${Date.now()}`;
   });
   overlay.querySelector("#aviso-nova-versao-depois").addEventListener("click", () => {
     overlay.remove();
